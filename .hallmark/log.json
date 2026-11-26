@@ -1,0 +1,25 @@
+[
+ {
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "ink",
+  "axes": "light/grotesk-sans/chromatic-teal",
+  "nav": "top bar, wordmark only",
+  "footer": "none",
+  "imagery": "none",
+  "photos": [],
+  "entry": "web/index.html",
+  "signature": "verdict word set large over a ruled ledger of sourced reasons",
+  "sections": [
+   "form",
+   "verdict sheet",
+   "earlier checks"
+  ],
+  "waived": [
+   "22"
+  ],
+  "prompt": "local vendor check tool",
+  "date": "2026-11-26",
+  "mode": "build"
+ }
+]

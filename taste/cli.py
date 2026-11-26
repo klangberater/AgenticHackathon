@@ -22,7 +22,12 @@ def slug(url: str) -> str:
     return re.sub(r"[^a-z0-9.-]+", "_", re.sub(r"^https?://(www\.)?", "", normalize(url).lower())).strip("_")
 
 
+LISTENERS: dict = {}  # slug -> callable(msg); the web server follows a run through this
+
+
 def log(url: str, msg: str) -> None:
+    if slug(url) in LISTENERS:
+        LISTENERS[slug(url)](msg)
     print(f"[{time.strftime('%H:%M:%S')}] {slug(url)}: {msg}", file=sys.stderr, flush=True)
 
 

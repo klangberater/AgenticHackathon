@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vendor check</title>
+<meta name="description" content="Check whether a software product is real and alive and whether its vendor can be trusted, with a source behind every reason.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;600;700&family=IBM+Plex+Mono&display=swap">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="bar">
+  <div class="container bar-in">
+    <a class="mark" href="/">Vendor check</a>
+    <span class="bar-note">Runs on this machine</span>
+  </div>
+</header>
+
+<main class="container page">
+  <form class="ask" id="ask" novalidate>
+    <label for="url">Product website</label>
+    <div class="ask-row">
+      <input id="url" name="url" type="text" inputmode="url" autocomplete="off" spellcheck="false"
+             placeholder="example.com" aria-describedby="ask-help ask-error">
+      <button class="btn" id="go" type="submit">Check vendor</button>
+    </div>
+    <p class="help" id="ask-help">A check takes two to four minutes. Every reason links to its source.</p>
+    <p class="error" id="ask-error" role="alert" hidden></p>
+  </form>
+
+  <div class="cols">
+    <section class="sheet" id="sheet" aria-live="polite" aria-busy="false">
+      <div id="empty" class="well">
+        <h2>No check open</h2>
+        <p>Enter a product’s website to find out whether the product is real and alive, and whether the company
+          behind it can be trusted with data and money.</p>
+      </div>
+
+      <div id="running" hidden>
+        <h2 id="run-title">Checking</h2>
+        <p class="meta"><span id="run-clock" class="num">0:00</span> elapsed</p>
+        <ol class="stages" id="stages">
+          <li data-stage="collect"><span class="stage-name">Collect signals</span>
+            <span class="stage-what">Domain age, archive history, mail and certificates, dead links</span></li>
+          <li data-stage="investigate"><span class="stage-name">Investigate</span>
+            <span class="stage-what">Registers, customers, marketplaces, press, incidents</span></li>
+          <li data-stage="verify"><span class="stage-name">Check sources</span>
+            <span class="stage-what">Each cited page is opened again and searched for the quote</span></li>
+        </ol>
+        <div class="skeleton" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      </div>
+
+      <div id="failed" class="well" hidden>
+        <h2>The check did not finish</h2>
+        <p id="fail-text"></p>
+        <button class="btn btn-quiet" id="retry" type="button">Try again</button>
+      </div>
+
+      <article id="result" hidden>
+        <header class="verdict">
+          <p class="verdict-word" id="v-word"></p>
+          <div>
+            <h1 id="v-name"></h1>
+            <p class="meta" id="v-vendor"></p>
+            <a id="v-url" rel="noreferrer noopener" target="_blank"></a>
+          </div>
+        </header>
+        <dl class="answers">
+          <div><dt>Product real and alive</dt><dd id="a-product"></dd></div>
+          <div><dt>Company trustworthy</dt><dd id="a-company"></dd></div>
+          <div><dt>Confidence</dt><dd id="a-conf"></dd></div>
+        </dl>
+        <p class="summary" id="v-summary"></p>
+
+        <h2 class="list-head" id="reasons-head">Reasons</h2>
+        <ol class="reasons" id="reasons"></ol>
+
+        <div id="unchecked-box" hidden>
+          <h2 class="list-head">Could not check</h2>
+          <ul class="plain" id="unchecked"></ul>
+        </div>
+        <div id="dropped-box" hidden>
+          <h2 class="list-head">Left out</h2>
+          <p class="meta">These reasons were removed because their source did not load or did not contain the quote.</p>
+          <ul class="plain" id="dropped"></ul>
+        </div>
+        <p class="meta" id="v-foot"></p>
+      </article>
+    </section>
+
+    <aside class="recent" aria-labelledby="recent-head">
+      <h2 class="list-head" id="recent-head">Earlier checks</h2>
+      <ul class="recent-list" id="recent"></ul>
+      <p class="meta" id="recent-empty">Finished checks are listed here.</p>
+    </aside>
+  </div>
+</main>
+
+<noscript><p class="container">This page needs JavaScript to start a check and show its result.</p></noscript>
+<script src="app.js"></script>
+</body>
+</html>
