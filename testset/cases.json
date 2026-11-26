@@ -1,0 +1,98 @@
+[
+ {
+  "url": "https://www.hs-soft.com",
+  "verdict": "trust",
+  "kind": "dated-solid",
+  "why": "H&S Heilig und Schubert Software: Austrian document-management vendor, registered since 1994"
+ },
+ {
+  "url": "https://www.pds.de",
+  "verdict": "trust",
+  "kind": "dated-solid",
+  "why": "pds: long-established German trades ERP"
+ },
+ {
+  "url": "https://www.mesonic.com",
+  "verdict": "trust",
+  "kind": "dated-solid",
+  "why": "mesonic WinLine: ERP vendor since the 1980s"
+ },
+ {
+  "url": "https://www.redmine.org",
+  "verdict": "trust",
+  "kind": "dated-solid",
+  "why": "Dated site, widely used open-source project with steady releases"
+ },
+ {
+  "url": "https://www.pivotaltracker.com",
+  "verdict": "avoid",
+  "kind": "shut-down",
+  "why": "Pivotal Tracker was shut down in 2025"
+ },
+ {
+  "url": "https://www.invisionapp.com",
+  "verdict": "avoid",
+  "kind": "shut-down",
+  "why": "InVision design tools discontinued at the end of 2024"
+ },
+ {
+  "url": "https://www.kite.com",
+  "verdict": "avoid",
+  "kind": "shut-down",
+  "why": "Kite stopped development in 2021"
+ },
+ {
+  "url": "https://quip.com",
+  "verdict": "avoid",
+  "kind": "frozen-after-acquisition",
+  "why": "Salesforce announced Quip's retirement"
+ },
+ {
+  "url": "https://www.workplace.com",
+  "verdict": "avoid",
+  "kind": "shut-down",
+  "why": "Meta announced the Workplace shutdown"
+ },
+ {
+  "url": "https://www.builder.ai",
+  "verdict": "avoid",
+  "kind": "collapsed",
+  "why": "Builder.ai entered insolvency in 2025 after revenue misstatements"
+ },
+ {
+  "url": "https://www.slync.io",
+  "verdict": "avoid",
+  "kind": "collapsed",
+  "why": "Slync: founder convicted of fraud, company defunct"
+ },
+ {
+  "url": "https://www.lastpass.com",
+  "verdict": "caution",
+  "kind": "breach",
+  "why": "2022 breach in which customer vaults were stolen"
+ },
+ {
+  "url": "https://www.3cx.com",
+  "verdict": "caution",
+  "kind": "breach",
+  "why": "2023 supply-chain compromise of the desktop app"
+ },
+ {
+  "url": "https://anydesk.com",
+  "verdict": "caution",
+  "kind": "breach",
+  "why": "2024 production-systems breach"
+ },
+ {
+  "url": "https://www.caya.com",
+  "verdict": "trust",
+  "kind": "control",
+  "why": "Funded Berlin scale-up with bank partnership"
+ },
+ {
+  "url": "https://www.personio.de",
+  "verdict": "trust",
+  "kind": "control",
+  "why": "Large, well-documented HR vendor"
+ }
+]

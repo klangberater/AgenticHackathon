@@ -64,18 +64,28 @@ bad a miss as waving through a hollow one.
 What carries weight is whatever takes time or needs someone else:
 - Age and continuity: domain registration, archived snapshots over the years, whether the product and company \
 name stayed the same. A site whose history starts last month is a different thing from one with a decade of captures.
-- Other parties vouching on their own turf: customers naming the vendor on their own sites, listings in partner \
-marketplaces and app stores (Microsoft, Google, Salesforce, SAP, Atlassian, AWS and so on) with install or review \
-counts, independent review sites, press the vendor did not write, analyst mentions, open-source repos with real \
-commit history, job postings.
+- Other parties vouching on their own turf: customers naming the vendor on their own sites or listing it as a \
+subprocessor in their privacy policies, listings in partner marketplaces and app stores (Microsoft, Google, \
+Salesforce, SAP, Atlassian, AWS, Zapier, Make, n8n and so on) with install or review counts, other employers' job \
+ads asking for experience with the product, public tenders and university or government software lists that name \
+it, implementation partners and training courses, press the vendor did not write, analyst mentions, open-source \
+repos and package registries with real history.
+- Ratings, read like a buyer reads them: how many reviews, how recent, on which site, and whether they arrived \
+spread over years or in one burst. Read the critical ones; they say what actually goes wrong.
 - A legal entity you can find: company register entries (Handelsregister via northdata.com or \
 unternehmensregister.de for Germany, Companies House for the UK, OpenCorporates elsewhere), an imprint with a \
 real address and managing directors, a team with a traceable history.
 - Signs of ongoing work: a changelog or release notes with recent dates, a status page with history, docs that \
 describe real behaviour in depth, recent support forum or community activity.
-- Risk the vendor will not advertise: data breaches, lawsuits, regulatory action, insolvency, layoffs, an \
-acquisition after which the product stopped moving, a founder's earlier ventures that ended badly. Search for \
+- Risk the vendor will not advertise: data breaches, lawsuits, regulatory action and fines, insolvency, layoffs, \
+published vulnerabilities, a shutdown or end-of-life announcement, an acquisition after which the product stopped \
+moving (compare release dates before and after the deal), a founder's earlier ventures that ended badly. Search for \
 these explicitly by product and company name; they are rarely on the vendor's blog.
+
+The signals include `flags_to_check` and `solid_signs`: cross-checks a script made between what the site says and \
+what outside records show. They are leads, and scripts misread pages, so confirm or dismiss each flag yourself; a \
+contradiction between a claim and an independent record that you have confirmed is among the strongest findings \
+you can report, because it comes with two links.
 
 Check the claims that matter instead of repeating them. If the site shows customer logos, pick a few and look for \
 confirmation from the customer's side. If it lists integrations, look for the listing in the partner's \

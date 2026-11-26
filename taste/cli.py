@@ -83,7 +83,9 @@ def markdown(verdicts: list[dict]) -> str:
 def cmd_run(args) -> None:
     urls = list(args.urls)
     if args.file:
-        urls += [l.strip() for l in Path(args.file).read_text().splitlines() if l.strip() and not l.startswith("#")]
+        raw = Path(args.file).read_text()
+        urls += ([c["url"] for c in json.loads(raw)] if args.file.endswith(".json") else
+                 [l.strip() for l in raw.splitlines() if l.strip() and not l.startswith("#")])
     if not urls:
         sys.exit("no URLs given")
     out = Path(args.out)
@@ -103,7 +105,7 @@ def cmd_eval(args) -> None:
     for dom, want in labels.items():
         got = mine.get(dom, {}).get("verdict", "(not run)")
         hit += got == want
-        print(f"{'ok  ' if got == want else 'MISS'} {dom:30} ours={got:8} theirs={want}")
+        print(f"{'ok  ' if got == want else 'MISS'} {dom:24} ours={got:10} expected={want}")
     print(f"{hit}/{len(labels)} match")
 
 

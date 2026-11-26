@@ -28,7 +28,7 @@ KEY_PAGES = {
     "docs": r"docs?\b|documentation|developer|api\b",
     "help": r"help|support|faq|knowledge|hilfe",
     "changelog": r"changelog|release|what'?s[- ]new|updates?\b|roadmap",
-    "blog": r"blog|news|press|aktuelles",
+    "blog": r"blog|news|\bpress\b|presse|aktuelles",
     "status": r"status",
     "pricing": r"pricing|preise|plans",
     "customers": r"customers?|case[- ]stud|kunden|referenzen|success",
@@ -39,6 +39,7 @@ KEY_PAGES = {
     "privacy": r"privacy|datenschutz|gdpr|dsgvo",
     "login": r"login|signin|sign-in|signup|sign-up|register|app\.",
     "integrations": r"integrations?|marketplace|partners?",
+    "subprocessors": r"sub-?processors?|unterauftrag|data-processing|dpa\b|avv\b",
 }
 SOCIAL = ("linkedin.com", "github.com", "twitter.com", "x.com", "youtube.com", "facebook.com",
           "g2.com", "capterra", "trustpilot", "apps.apple.com", "play.google.com", "crunchbase.com")
@@ -205,6 +206,8 @@ def collect(url: str) -> dict:
         out["homepage"]["error"] = home["error"]
 
     internal: dict[str, str] = {}
+    text = ""
+    hollow_social: list[str] = []
     if home["text"]:
         p = _Links()
         try:
@@ -246,11 +249,15 @@ def collect(url: str) -> dict:
                             key_pages[kind].append(absu)
             elif any(s in h for s in SOCIAL) or "status" in h:
                 external.setdefault(absu, label)
+                if urllib.parse.urlparse(absu).path in ("", "/") and "status" not in h:
+                    hollow_social.append(absu)
         out["key_pages"] = key_pages
         out["missing_key_pages"] = [k for k in ("docs", "help", "pricing", "customers", "about", "legal", "privacy")
                                     if k not in key_pages]
         out["external_profiles"] = list(external)[:25]
         out["internal_link_count"] = len(internal)
+        if hollow_social:
+            out["hollow_social_links"] = sorted(set(hollow_social))
 
     # Dead-link check on a sample of the site's own links, key pages first.
     ordered = [u for us in out.get("key_pages", {}).values() for u in us]
@@ -281,24 +288,21 @@ def collect(url: str) -> dict:
             out["redirect_note"] = f"{in_domain} redirects to {domain}; history is given for both"
             out["input_domain_registration"] = rdap(in_domain)
             out["input_domain_wayback"] = wayback(in_domain)
+        extra.offsite(out, domain)
+        extra.flags(out, now)
 
     if home["status"] in (403, 429):  # refused: don't keep knocking
         history()
         return out
-    sm = fetch(root + "/sitemap.xml", 800_000)
-    if sm["status"] == 200 and "<" in sm["text"]:
-        mods = sorted(re.findall(r"<lastmod>\s*(\d{4}-\d{2}-\d{2})", sm["text"]))
-        out["sitemap"] = {"url": root + "/sitemap.xml", "entries": sm["text"].count("<loc>"),
-                          "oldest_lastmod": mods[0] if mods else None, "newest_lastmod": mods[-1] if mods else None}
-    else:
-        out["sitemap"] = {"url": root + "/sitemap.xml", "status": sm["status"]}
+    extra.onsite(out, text, root, now)
     time.sleep(DELAY)
     st = fetch(root + "/.well-known/security.txt", 20_000)
     out["security_txt"] = st["status"] == 200 and "contact:" in st["text"].lower()
-
     history()
     return out
 
+
+from . import extra  # noqa: E402  (extra imports fetch and page_text from this module)
 
 if __name__ == "__main__":
     import sys
