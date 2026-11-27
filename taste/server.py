@@ -27,7 +27,7 @@ from .collect import normalize
 WEB = Path(__file__).resolve().parent.parent / "web"
 OUT = Path("out/web")
 TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",
-         ".pdf": "application/pdf"}
+         ".pdf": "application/pdf", ".csv": "text/csv; charset=utf-8"}
 JOBS: dict[str, dict] = {}
 ARGS = SimpleNamespace(model=agent.MODEL, effort=agent.EFFORT, no_repair=False, no_support_check=False)
 MAX_RUNNING = int(os.environ.get("TASTE_MAX_RUNNING", "4"))
