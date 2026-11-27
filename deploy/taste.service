@@ -19,6 +19,8 @@ MemoryMax=3G
 # This machine is a jump host. The service fetches addresses that visitors type in, so it may only
 # talk to the public internet: no loopback, no private ranges, no metadata endpoints.
 IPAddressDeny=localhost link-local multicast 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10 fc00::/7
+# The one exception: Ubuntu's local DNS resolver, without which no host name resolves.
+IPAddressAllow=127.0.0.53 127.0.0.54
 NoNewPrivileges=yes
 ProtectSystem=strict
 ReadWritePaths=/opt/taste
