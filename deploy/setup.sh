@@ -30,7 +30,12 @@ systemctl enable --now taste
 systemctl restart taste
 usermod -aG taste www-data            # lets nginx open the service's socket
 
-test -e /etc/nginx/sites-available/getfletcher.ai || cp deploy/getfletcher.ai.nginx /etc/nginx/sites-available/getfletcher.ai
+# Keep our own site file (certbot edits it in place); move anyone else's out of the way first.
+SITE=/etc/nginx/sites-available/getfletcher.ai
+if [ -e "$SITE" ] && ! grep -q "vendor-check service" "$SITE"; then
+    mv "$SITE" "/root/getfletcher.ai.nginx.$(date +%s).old"
+fi
+test -e "$SITE" || cp deploy/getfletcher.ai.nginx "$SITE"
 ln -sf /etc/nginx/sites-available/getfletcher.ai /etc/nginx/sites-enabled/getfletcher.ai
 nginx -t
 systemctl restart nginx
