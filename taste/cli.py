@@ -46,8 +46,14 @@ def judge_one(url: str, out: Path, args) -> dict:
         shots = [shot] if has_shot else []
         if has_shot and browser.screenshot(normalize(url), full, height=5200):  # the whole page, from further away
             shots.append(full)
+        # A help article, to compare the product the docs show with the one the marketing shows.
+        article = next((a for h in signals.get("help_and_docs", []) for a in h.get("live_articles", [])), None)
+        docs = out / f"{slug(url)}.docs.png"
+        if not (has_shot and article and browser.screenshot(article, docs, height=1500)):
+            article = None
+            docs.unlink(missing_ok=True)
         log(url, "investigating" + ("" if has_shot else " (no screenshot)"))
-        v = agent.judge(url, signals, shots, args.model, args.effort)
+        v = agent.judge(url, signals, shots + ([docs] if article else []), args.model, args.effort, docs_url=article)
         verify.check_all(v["reasons"])
         bad = verify.failed(v["reasons"])
         if bad and not args.no_repair:

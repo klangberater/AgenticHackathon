@@ -211,7 +211,7 @@ def help_centre(url: str, sample: int = 8) -> dict:
         u = urllib.parse.urldefrag(urllib.parse.urljoin(r["url"], href))[0]
         pu = urllib.parse.urlparse(u)
         if pu.hostname == host and u.rstrip("/") != here and len(pu.path) > 1 and u not in links \
-                and not re.search(r"login|signin|signup|logout|\.(png|jpg|svg|css|js|pdf|zip)$", u, re.I):
+                and not re.search(r"login|signin|signup|logout|llms|\.(png|jpe?g|gif|svg|css|js|pdf|zip|txt|xml|json|md|exe|msi|dmg)$", u, re.I):
             links.append(u)
     out = {"url": r["url"], "links_found": len(links)}
     if len(page_text(r["text"])) < 400 and not links:
@@ -220,7 +220,7 @@ def help_centre(url: str, sample: int = 8) -> dict:
     own = [u for u in links if u.startswith(here + "/")]
     picked = (own or links)[:sample]
     out["article_links_under_this_page"] = len(own)
-    dead = []
+    dead, alive = [], []
     for u in picked:
         time.sleep(DELAY)
         s = fetch(u, 20_000)
@@ -229,7 +229,10 @@ def help_centre(url: str, sample: int = 8) -> dict:
             break
         if s["status"] in (0, 404, 410) or s["status"] >= 500:
             dead.append({"url": u, "status": s["status"]})
-    return out | {"checked": len(picked), "dead": dead}
+        elif s["status"] == 200 and u in own:
+            alive.append(u)
+    # An article that loaded, for the screenshot that shows the product as its own docs show it.
+    return out | {"checked": len(picked), "dead": dead, "live_articles": alive[:3]}
 
 
 def onsite(out: dict, home_text: str, root: str, today: dt.date) -> None:

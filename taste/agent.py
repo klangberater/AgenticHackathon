@@ -135,6 +135,11 @@ counters and claims set in graphics, and anything broken. Record this in design_
 concretely enough that someone looking at the page would agree, and what it does and does not tell a buyer. \
 Where something you see matters for the verdict, also make it a flag; to cite it, use the page's URL and quote \
 nearby text from that page.
+- When there is a screenshot of a help or docs article, compare the product it shows with the product the \
+homepage shows. A real product looks the same in its own docs as in its marketing. An interface that differs, \
+marketing visuals that look like mock-ups next to docs that show something plainer, or docs that never show the \
+product at all are worth noting in design_read, and as a flag if they bear on whether the product exists as \
+advertised. If the article simply has no screenshots, that alone means little.
 - Read the vendor's own site critically: the footer, the legal and privacy pages (do they exist, are they real \
 documents, do they name an entity and an address), the trust centre (certificates that name an auditor, dates \
 that agree with each other; a claimed ISO certificate can be looked up at iafcertsearch.org or in the \
@@ -219,12 +224,18 @@ if os.environ.get("TASTE_VERDICT_FILE"):
     SCHEMA["required"].append("identity")
 
 
-def judge(url: str, signals: dict, screenshots: list[Path] = (), model: str = MODEL, effort: str = EFFORT) -> dict:
-    """Run one investigation. Returns the structured verdict plus `_meta`."""
+def judge(url: str, signals: dict, screenshots: list[Path] = (), model: str = MODEL, effort: str = EFFORT,
+          docs_url: str | None = None) -> dict:
+    """Run one investigation. Returns the structured verdict plus `_meta`.
+
+    With `docs_url`, the last screenshot is that help or docs article from the vendor's site.
+    """
     text = (f"Assess this software product: {url}\n\n"
             + ("The images are screenshots of that page as a visitor sees it: first the top of the page, then "
                "the whole page.\n\n" if screenshots else
                "No screenshot could be taken, so base design_read on the page's markup and say so there.\n\n")
+            + (f"The last image is a different page: a help or docs article from the vendor's site, {docs_url}\n\n"
+               if docs_url else "")
             + "Signals a script already collected (each comes with a URL you can cite after opening it; "
               "where the script was blocked or found nothing, check yourself):\n"
             f"<signals>\n{json.dumps(signals, indent=1, ensure_ascii=False)}\n</signals>")

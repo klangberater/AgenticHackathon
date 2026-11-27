@@ -80,8 +80,15 @@ ul, ol { margin: 0 0 2mm; padding-left: 5mm; } li { margin-bottom: 0.8mm; }
 .nowrap { white-space: nowrap; }
 .gaps { break-inside: avoid; }
 .howto p { margin: 0 0 1.2mm; }
-.design { display: grid; grid-template-columns: 1fr 58mm; gap: 5mm; align-items: start; break-inside: avoid; }
-.design img { width: 58mm; height: 64mm; object-fit: cover; object-position: top; border: 0.3pt solid var(--rule); border-radius: 1.5mm; margin-top: 6mm; }
+.look { display: grid; grid-template-columns: 46mm 1fr; gap: 5mm; align-items: start; margin-top: 5mm; break-inside: avoid; }
+.look:not(:has(img)) { grid-template-columns: 1fr; }
+.look img { width: 46mm; height: 40mm; object-fit: cover; object-position: top; border: 0.3pt solid var(--rule); border-radius: 1.5mm; }
+.look h3 { margin-top: 0; }
+.design { break-inside: avoid; }
+.shots { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin-top: 2mm; }
+.shots figure { margin: 0; }
+.shots img { width: 100%; height: 70mm; object-fit: cover; object-position: top; border: 0.3pt solid var(--rule); border-radius: 1.5mm; }
+.shots figcaption { font-size: 8.5pt; color: var(--muted); margin-top: 1mm; }
 """
 
 e = html.escape
@@ -190,7 +197,7 @@ def _flag(r: dict, no: str) -> str:
             f'From {src}; {status}.</p></div></div>')
 
 
-def _product(v: dict, sig: dict, has_shot: bool = False) -> str:
+def _product(v: dict, sig: dict, has_shot: bool = False, has_docs: bool = False) -> str:
     if "error" in v:
         return f'<section class="product"><h2>{e(v["url"])}</h2><p>The run failed: {e(v["error"])}</p></section>'
     c = v["verdict"]
@@ -212,6 +219,12 @@ def _product(v: dict, sig: dict, has_shot: bool = False) -> str:
         f'<div><span class="muted small">{label}</span><b>{e(str(val).replace("_", " "))}</b></div>' for label, val in (
             ("Product real and alive", v["product_real_and_alive"]), ("Company trustworthy", v["company_trustworthy"]),
             ("Lifecycle", v["lifecycle"]), ("Our confidence", v["confidence"]))) + "</div>")
+    d = v.get("design_read")
+    shot = f"{cli.slug(v['url'])}.png"
+    if d:
+        out.append('<div class="look">' + (f'<img src="{e(shot, quote=True)}" alt="Screenshot of the top of the page">' if has_shot else "")
+                   + f'<div><h3>How the site looks</h3><p><b>Design era:</b> {e(d["era"])}</p>'
+                   f'<p>{e(d["bearing"])}</p></div></div>')
     if v.get("could_not_check"):
         out.append('<div class="gaps"><h3>What we could not verify</h3><p class="small muted">Not counted for or against '
                    "the vendor; a buyer would close these gaps before signing.</p><ul>"
@@ -223,13 +236,13 @@ def _product(v: dict, sig: dict, has_shot: bool = False) -> str:
         out.append(f'<h3>All other flags ({counts})</h3>')
         for colour in ("red", "yellow", "green"):
             out += [_flag(r, no[id(r)]) for r in rest if r["flag"] == colour]
-    d = v.get("design_read")
     if d:
-        shot = f"{cli.slug(v['url'])}.png"
-        out.append('<div class="design"><div><h3>What the page looks like</h3>'
-                   f'<p><b>Design era:</b> {e(d["era"])}</p><ul>' + "".join(f"<li>{e(x)}</li>" for x in d["observations"])
-                   + f'</ul><p><b>What that tells a buyer:</b> {e(d["bearing"])}</p></div>'
-                   + (f'<img src="{e(shot, quote=True)}" alt="Screenshot of the top of the page">' if has_shot else "") + "</div>")
+        docs = f"{cli.slug(v['url'])}.docs.png"
+        out.append('<div class="design"><h3>What we saw on the site</h3><ul>' + "".join(f"<li>{e(x)}</li>" for x in d["observations"])
+                   + "</ul>" + ('<div class="shots">' + (f'<figure><img src="{e(shot, quote=True)}" alt=""><figcaption>Homepage</figcaption></figure>' if has_shot else "")
+                   + (f'<figure><img src="{e(docs, quote=True)}" alt=""><figcaption>A help article from the same site, '
+                      "to compare with the product the homepage shows</figcaption></figure>" if has_docs else "") + "</div>"
+                      if has_shot or has_docs else "") + "</div>")
     if v.get("dropped_reasons"):
         out.append('<h3>Findings we removed</h3><p class="small muted">Taken out by the automatic checks because the source '
                    "did not load, did not contain the quote, or did not carry the claim.</p><ul class=\"small\">"
@@ -307,7 +320,8 @@ def build(out: Path) -> Path:
            'for that ground; then our reasoning, what we could not verify, and every other flag.</div>'
            f'<div><b>The evidence</b>{e(evidence)}</div></div>'
            f'<table class="overview"><tr><th></th><th>Product</th><th>Rating</th><th>What decided it</th><th>Flags</th></tr>{rows}</table>'
-           + "".join(_product(v, sigs[v["url"]], (out / f"{cli.slug(v['url'])}.png").is_file()) for v in verdicts) + _method() + "</body></html>")
+           + "".join(_product(v, sigs[v["url"]], (out / f"{cli.slug(v['url'])}.png").is_file(),
+                             (out / f"{cli.slug(v['url'])}.docs.png").is_file()) for v in verdicts) + _method() + "</body></html>")
     html_path, pdf_path = out / "report.html", out / "report.pdf"
     html_path.write_text(doc, encoding="utf-8")
     exe = browser.binary()

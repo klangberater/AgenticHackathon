@@ -93,7 +93,7 @@ class Handler(BaseHTTPRequestHandler):
             work.mkdir(parents=True, exist_ok=True)
             (work / "verdicts.json").write_text(json.dumps([json.loads(src.read_text())]))
             sig = OUT / f"{name}.signals.json"
-            for extra_file in (sig, OUT / f"{name}.png"):
+            for extra_file in (sig, OUT / f"{name}.png", OUT / f"{name}.docs.png"):
                 if extra_file.is_file():
                     (work / extra_file.name).write_bytes(extra_file.read_bytes())
             made = report.build(work)
