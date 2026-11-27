@@ -157,6 +157,11 @@ from their side. Follow the footer's social links (see outbound_links): a compan
 followers and one employee does not match a wall of customers. Compare \
 traction numbers with independent signs of size such as headcount, and with what the vendor claimed in earlier \
 years.
+- If consumers, freelancers or small businesses buy the product directly, open its Trustpilot page (trustpilot.com/review/ followed by the domain) and weigh the rating, the number of reviews, whether the \
+same complaint recurs (billing, cancellation, refunds, support) and whether the company replies. A handful of reviews means little either way; a recurring complaint \
+is a finding. For business software, look for its page on PeerSpot (peerspot.com) and, for vendors selling in \
+German-speaking markets, on OMR Reviews (omr.com/en/reviews); weigh them the same way. G2, Capterra and similar \
+sites usually block your fetch tool; if so, list them under could_not_check.
 - Use one or two direct competitors as a yardstick, briefly. They tell you what is normal in this category \
 for the things a buyer relies on: security certifications, independent reviews, named customers, how incidents \
 are disclosed, conduct in sanctioned markets. An absence only means something against that norm, so "no \
