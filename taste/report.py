@@ -19,56 +19,84 @@ from . import agent, browser, cli
 LABEL = {"green": "Green", "yellow": "Yellow", "red": "Red"}
 MEANING = {"green": "shortlist it", "yellow": "shortlist only after resolving the yellow flags",
            "red": "do not shortlist"}
-CHECK = {"ok": "quote confirmed on the page", "weak": "quote only partly matched",
-         "unreadable": "page could not be re-read by the checker"}
+CHECK = {"ok": "quote re-found on the page by code", "weak": "quote only partly re-found on the page",
+         "unreadable": "the page blocks automated re-reading, so open the link to check"}
 
 CSS = """
-@page { size: A4; margin: 16mm 15mm 18mm; }
+:root {
+  --ink: #1c1c1a; --muted: #5c5c57; --rule: #d6d5cf; --wash: #f5f4ef; --link: #1a4fa0;
+  --green-bg: #dff3e4; --green-ink: #14602c; --green-edge: #3f9a5c;
+  --yellow-bg: #f7ecb5; --yellow-ink: #6a5200; --yellow-edge: #c9a400;
+  --red-bg: #fbe0dc; --red-ink: #9a1c12; --red-edge: #d0493b;
+  --sans: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+@page { size: A4; margin: 15mm 15mm 16mm; }
 * { box-sizing: border-box; }
-body { font: 10pt/1.45 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: #1c1c1a; margin: 0; }
+body { font: 10pt/1.45 var(--sans); color: var(--ink); background: #fff; margin: 0; }
 h1 { font-size: 20pt; line-height: 1.15; margin: 0 0 2mm; letter-spacing: -0.01em; }
-h2 { font-size: 14pt; line-height: 1.2; margin: 0 0 1mm; }
-h3 { font-size: 10.5pt; margin: 6mm 0 2mm; }
+h2 { font-size: 15pt; line-height: 1.2; margin: 0 0 1mm; }
+h3 { font-size: 11pt; margin: 6mm 0 2mm; break-after: avoid; }
 p { margin: 0 0 2mm; }
-a { color: #1a4fa0; word-break: break-all; }
-.muted { color: #5c5c57; }
+a { color: var(--link); text-decoration: none; }
+.muted { color: var(--muted); }
 .small { font-size: 8.5pt; }
 table { border-collapse: collapse; width: 100%; }
-th, td { text-align: left; vertical-align: top; padding: 1.6mm 2mm; border-bottom: 0.3pt solid #cfcec8; }
-th { font-weight: 600; font-size: 8.5pt; color: #5c5c57; }
-.chip { display: inline-block; padding: 0.3mm 2.2mm; border-radius: 1.2mm; font-weight: 700; font-size: 9pt; }
-.green { background: #dff3e4; color: #14602c; } .yellow { background: #f7ecb5; color: #6a5200; }
-.red { background: #fbe0dc; color: #9a1c12; }
+th, td { text-align: left; vertical-align: top; padding: 2mm; border-bottom: 0.3pt solid var(--rule); }
+th { font-weight: 600; font-size: 8.5pt; color: var(--muted); }
+tr { break-inside: avoid; }
+ul, ol { margin: 0 0 2mm; padding-left: 5mm; } li { margin-bottom: 0.8mm; }
+.chip { display: inline-block; padding: 0.3mm 2.2mm; border-radius: 1.2mm; font-weight: 700; font-size: 9pt; white-space: nowrap; }
+.green { background: var(--green-bg); color: var(--green-ink); }
+.yellow { background: var(--yellow-bg); color: var(--yellow-ink); }
+.red { background: var(--red-bg); color: var(--red-ink); }
+.howto { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; margin: 5mm 0 6mm; }
+.howto div { background: var(--wash); border-radius: 1.5mm; padding: 3mm; font-size: 9pt; }
+.howto b { display: block; margin-bottom: 1mm; }
+.overview td.decided { font-size: 9.5pt; }
 .product { break-before: page; }
-.head { display: grid; grid-template-columns: 34mm 1fr; gap: 5mm; border: 0.3pt solid #cfcec8; border-radius: 2mm; overflow: hidden; }
-.call { display: grid; align-content: center; justify-items: center; padding: 5mm 2mm; font-size: 22pt; font-weight: 700; }
-.call small { font-size: 7.5pt; font-weight: 500; text-align: center; line-height: 1.25; margin-top: 1mm; }
-.ident { padding: 4mm 4mm 3mm 0; }
-.readings { display: grid; grid-template-columns: repeat(4, 1fr); margin: 3mm 0; border: 0.3pt solid #cfcec8; border-radius: 2mm; }
-.readings div { padding: 2mm 3mm; border-right: 0.3pt solid #cfcec8; } .readings div:last-child { border-right: 0; }
-.readings b { display: block; font-size: 11pt; }
-.flaggroup { margin-top: 4mm; }
-.flaggroup > h3 { margin: 0; padding: 1.5mm 3mm; border-radius: 1.5mm 1.5mm 0 0; break-after: avoid; }
-.flag { padding: 2.5mm 3mm; border: 0.3pt solid #cfcec8; border-top: 0; break-inside: avoid; }
-.flag .claim { font-weight: 600; }
-.flag blockquote { margin: 1.5mm 0; padding: 1mm 2.5mm; border-left: 1.5pt solid #b9b8b1; background: #f4f3ee; font-size: 9pt; }
-.facts td:first-child { width: 42mm; color: #5c5c57; }
-ul { margin: 0 0 2mm; padding-left: 5mm; } li { margin-bottom: 0.8mm; }
-.rubric { white-space: pre-wrap; font-size: 8.5pt; line-height: 1.4; background: #f4f3ee; padding: 3mm; border-radius: 1.5mm; }
-.cover { margin-bottom: 6mm; }
+.head { display: grid; grid-template-columns: 38mm 1fr; border: 0.3pt solid var(--rule); border-radius: 2mm; overflow: hidden; }
+.call { display: grid; align-content: center; justify-items: center; padding: 5mm 2mm; font-size: 24pt; font-weight: 700; text-align: center; }
+.call small { font-size: 8pt; font-weight: 500; line-height: 1.25; margin-top: 1mm; }
+.ident { padding: 4mm 5mm 3mm; }
+.ident p { margin-bottom: 1mm; }
+.decided-by { margin: 5mm 0 0; padding: 3mm 4mm; border-left: 2.5pt solid var(--rule); background: var(--wash); font-size: 11.5pt; line-height: 1.4; break-inside: avoid; }
+.edge-green { border-left-color: var(--green-edge); } .edge-yellow { border-left-color: var(--yellow-edge); }
+.edge-red { border-left-color: var(--red-edge); }
+.decided-by span { display: block; font-size: 8.5pt; color: var(--muted); margin-bottom: 0.8mm; }
+.readings { display: grid; grid-template-columns: repeat(4, 1fr); margin: 4mm 0 0; border: 0.3pt solid var(--rule); border-radius: 2mm; }
+.readings div { padding: 1.8mm 3mm; border-right: 0.3pt solid var(--rule); } .readings div:last-child { border-right: 0; }
+.readings b { display: block; font-size: 10.5pt; }
+.flag { display: grid; grid-template-columns: 9mm 1fr; gap: 0 2mm; padding: 2.5mm 0; border-bottom: 0.3pt solid var(--rule); break-inside: avoid; }
+.flag:first-of-type { border-top: 0.3pt solid var(--rule); }
+.flag .no { font-size: 8.5pt; padding: 0.3mm 1mm; text-align: center; align-self: start; }
+.flag .claim { font-weight: 600; margin-bottom: 1.2mm; }
+.flag blockquote { margin: 0 0 1.2mm; padding: 0.8mm 2.5mm; border-left: 1.5pt solid var(--rule); background: var(--wash); font-size: 9pt; }
+.flag .src { font-size: 8.5pt; color: var(--muted); margin: 0; }
+.flag .src a { word-break: break-all; }
+.part { break-before: page; }
+.part > h3:first-child { margin-top: 0; }
+.facts td { padding: 1.2mm 2mm; } .facts td:first-child { width: 42mm; color: var(--muted); }
+.rubric { white-space: pre-wrap; font-size: 8.5pt; line-height: 1.4; background: var(--wash); padding: 3mm; border-radius: 1.5mm; }
 .nowrap { white-space: nowrap; }
-.design { display: grid; grid-template-columns: 1fr 62mm; gap: 5mm; align-items: start; break-inside: avoid; }
-.design h3 { margin-top: 4mm; }
-.design img { width: 62mm; height: 72mm; object-fit: cover; object-position: top; border: 0.3pt solid #cfcec8; border-radius: 1.5mm; margin-top: 4mm; }
+.gaps { break-inside: avoid; }
+.howto p { margin: 0 0 1.2mm; }
+.design { display: grid; grid-template-columns: 1fr 58mm; gap: 5mm; align-items: start; break-inside: avoid; }
+.design img { width: 58mm; height: 64mm; object-fit: cover; object-position: top; border: 0.3pt solid var(--rule); border-radius: 1.5mm; margin-top: 6mm; }
 """
 
 e = html.escape
 
 
-def _link(url: str, target: str | None = None) -> str:
+def _short(url: str, n: int = 72) -> str:
+    """The URL as a reader scans it: no scheme or www, cut to one line. The link itself stays complete."""
+    u = url.split("://", 1)[-1].removeprefix("www.").rstrip("/")
+    return u if len(u) <= n else u[: n - 1] + "…"
+
+
+def _link(url: str, target: str | None = None, short: bool = False) -> str:
     if not url.startswith(("http://", "https://")):
         return e(url)
-    return f'<a href="{e(target or url, quote=True)}">{e(url)}</a>'
+    return f'<a href="{e(target or url, quote=True)}">{e(_short(url) if short else url)}</a>'
 
 
 def _facts(sig: dict) -> list[tuple[str, str]]:
@@ -131,23 +159,70 @@ def _gist(v: dict, limit: int = 260) -> str:
     return text if len(text) <= limit else text[:limit].rsplit(" ", 1)[0] + " …"
 
 
+def _deciding(v: dict) -> tuple[list[dict], bool]:
+    """The flags that set the verdict, and whether the agent marked them itself.
+
+    Runs from before the agent marked them (or a run where the marked flags were removed by the source checks)
+    fall back to the flags of the verdict's colour, strongest first, which the rubric says set the verdict.
+    """
+    marked = [r for r in v.get("reasons", []) if r.get("decides") and r["flag"] == v["verdict"]]
+    if marked:
+        return marked, True
+    return cli.flags(v, v["verdict"])[:3], False
+
+
+def _numbers(v: dict) -> dict[int, str]:
+    """A stable label per flag (R1, Y2, G3), so the page can refer to it."""
+    seen: dict[str, int] = {}
+    out = {}
+    for r in v.get("reasons", []):
+        seen[r["flag"]] = seen.get(r["flag"], 0) + 1
+        out[id(r)] = f"{r['flag'][0].upper()}{seen[r['flag']]}"
+    return out
+
+
+def _flag(r: dict, no: str) -> str:
+    src = "independent source" if r["independent"] else "the vendor's own page"
+    status = CHECK.get(r["check"]["status"], r["check"]["status"])
+    return (f'<div class="flag"><span class="chip no {r["flag"]}">{no}</span><div>'
+            f'<p class="claim">{e(r["claim"])}</p><blockquote>“{e(r["quote"])}”</blockquote>'
+            f'<p class="src">{_link(r["source_url"], cli.evidence_link(r), short=True)}<br>'
+            f'From {src}; {status}.</p></div></div>')
+
+
 def _product(v: dict, sig: dict, has_shot: bool = False) -> str:
     if "error" in v:
         return f'<section class="product"><h2>{e(v["url"])}</h2><p>The run failed: {e(v["error"])}</p></section>'
     c = v["verdict"]
+    no = _numbers(v)
+    deciding, marked = _deciding(v)
     out = [f'<section class="product"><div class="head"><div class="call {c}">{LABEL[c]}<small>{e(MEANING[c])}</small></div>',
            f'<div class="ident"><h2>{e(v["product_name"])}</h2>',
            f'<p>{e(v.get("product_category", ""))}</p><p class="muted">{e(v["vendor_name"])}</p>']
     if v.get("former_names"):
         out.append(f'<p class="muted small">Formerly: {e(", ".join(v["former_names"]))}</p>')
-    if v.get("identity"):
-        out.append(f'<p class="small">{e(v["identity"])}</p>')
     out.append(f'<p class="small">{_link(v["url"])}</p></div></div>')
+    if v.get("deciding_ground"):
+        out.append(f'<div class="decided-by edge-{c}"><span>What decided the rating</span>{e(v["deciding_ground"])}</div>')
+    if deciding:
+        title = "The evidence that decided it" if marked else f"The strongest {LABEL[c].lower()} flags"
+        out.append(f"<h3>{title}</h3>" + "".join(_flag(r, no[id(r)]) for r in deciding))
+    out.append(f'<h3>Our reasoning</h3><p>{e(v["summary"])}</p>')
     out.append('<div class="readings">' + "".join(
         f'<div><span class="muted small">{label}</span><b>{e(str(val).replace("_", " "))}</b></div>' for label, val in (
             ("Product real and alive", v["product_real_and_alive"]), ("Company trustworthy", v["company_trustworthy"]),
-            ("Lifecycle", v["lifecycle"]), ("Confidence", v["confidence"]))) + "</div>")
-    out.append(f'<h3>Why this rating</h3><p>{e(v["summary"])}</p>')
+            ("Lifecycle", v["lifecycle"]), ("Our confidence", v["confidence"]))) + "</div>")
+    if v.get("could_not_check"):
+        out.append('<div class="gaps"><h3>What we could not verify</h3><p class="small muted">Not counted for or against '
+                   "the vendor; a buyer would close these gaps before signing.</p><ul>"
+                   + "".join(f"<li>{e(x)}</li>" for x in v["could_not_check"]) + "</ul></div>")
+    rest = [r for r in v.get("reasons", []) if r not in deciding]
+    if rest:
+        counts = ", ".join(f"{len([r for r in rest if r['flag'] == col])} {col}" for col in ("red", "yellow", "green")
+                           if any(r["flag"] == col for r in rest))
+        out.append(f'<h3>All other flags ({counts})</h3>')
+        for colour in ("red", "yellow", "green"):
+            out += [_flag(r, no[id(r)]) for r in rest if r["flag"] == colour]
     d = v.get("design_read")
     if d:
         shot = f"{cli.slug(v['url'])}.png"
@@ -155,30 +230,14 @@ def _product(v: dict, sig: dict, has_shot: bool = False) -> str:
                    f'<p><b>Design era:</b> {e(d["era"])}</p><ul>' + "".join(f"<li>{e(x)}</li>" for x in d["observations"])
                    + f'</ul><p><b>What that tells a buyer:</b> {e(d["bearing"])}</p></div>'
                    + (f'<img src="{e(shot, quote=True)}" alt="Screenshot of the top of the page">' if has_shot else "") + "</div>")
-    for colour in ("red", "yellow", "green"):
-        fl = cli.flags(v, colour)
-        if not fl:
-            continue
-        out.append(f'<div class="flaggroup"><h3 class="{colour}">{LABEL[colour]} flags ({len(fl)})</h3>')
-        for r in fl:
-            notes = [r["category"], "independent source" if r["independent"] else "vendor's own source"]
-            if "confirmed" in r:
-                notes.append("confirmed" if r["confirmed"] else "not confirmed")
-            notes.append(CHECK.get(r["check"]["status"], r["check"]["status"]))
-            out.append(f'<div class="flag"><p class="claim">{e(r["claim"])}</p><blockquote>“{e(r["quote"])}”</blockquote>'
-                       f'<p class="small">{_link(r["source_url"], cli.evidence_link(r))}</p>'
-                       f'<p class="small muted">{e("; ".join(notes))}</p></div>')
-        out.append("</div>")
-    if v.get("could_not_check"):
-        out.append("<h3>What could not be checked</h3><ul>" + "".join(f"<li>{e(x)}</li>" for x in v["could_not_check"]) + "</ul>")
     if v.get("dropped_reasons"):
-        out.append('<h3>Findings left out</h3><p class="small muted">Removed by the automatic checks because the source '
+        out.append('<h3>Findings we removed</h3><p class="small muted">Taken out by the automatic checks because the source '
                    "did not load, did not contain the quote, or did not carry the claim.</p><ul class=\"small\">"
-                   + "".join(f"<li>{e(r['claim'])} ({e(r['check'].get('detail') or r['check']['status'])}) {_link(r['source_url'])}</li>"
+                   + "".join(f"<li>{e(r['claim'])} ({e(r['check'].get('detail') or r['check']['status'])}) {_link(r['source_url'], short=True)}</li>"
                              for r in v["dropped_reasons"]) + "</ul>")
     facts = _facts(sig)
     if facts or sig.get("flags_to_check") or sig.get("solid_signs"):
-        out.append('<h3>Facts collected by script before the investigation</h3><table class="facts small">'
+        out.append('<h3>Facts a script collected before the investigation</h3><table class="facts small">'
                    + "".join(f"<tr><td>{e(k)}</td><td>{e(val)}</td></tr>" for k, val in facts) + "</table>")
         for title, key in (("Cross-checks that raised a question", "flags_to_check"), ("Cross-checks that speak for the vendor", "solid_signs")):
             if sig.get(key):
@@ -222,16 +281,32 @@ def build(out: Path) -> Path:
         f = out / f"{cli.slug(v['url'])}.signals.json"
         sigs[v["url"]] = json.loads(f.read_text()) if f.is_file() else {}
     rows = "".join(
-        f'<tr><td>{i}</td><td><b>{e(v.get("product_name", v["url"]))}</b><br><span class="muted small">{e(v["url"])}</span></td>'
+        f'<tr><td>{i}</td><td><b>{e(v.get("product_name", v["url"]))}</b><br><span class="small">{_link(v["url"], short=True)}</span></td>'
         f'<td>{"<span class=\'chip " + v["verdict"] + "\'>" + LABEL[v["verdict"]] + "</span>" if "verdict" in v else "failed"}</td>'
-        f'<td class="small nowrap">{len(cli.flags(v, "red"))} red<br>{len(cli.flags(v, "yellow"))} yellow<br>{len(cli.flags(v, "green"))} green</td>'
-        f'<td class="small">{e(_gist(v))}</td></tr>'
+        f'<td class="decided">{e(v.get("deciding_ground") or _gist(v))}</td>'
+        f'<td class="small nowrap">{len(cli.flags(v, "red"))} red<br>{len(cli.flags(v, "yellow"))} yellow<br>{len(cli.flags(v, "green"))} green</td></tr>'
         for i, v in enumerate(verdicts, 1))
+    cited = [r for v in verdicts for r in v.get("reasons", [])]
+    found = sum(r["check"]["status"] == "ok" for r in cited)
+    blocked = sum(r["check"]["status"] == "unreadable" for r in cited)
+    removed = sum(len(v.get("dropped_reasons", [])) for v in verdicts)
+    partly = len(cited) - found - blocked
+    evidence = (f"{len(cited)} findings, each with a source link and a verbatim quote. Code re-opened every source and "
+                f"re-found {found} of the quotes" + (f", {partly} in part" if partly else "")
+                + (f"; {blocked} sit on pages that block automated reading" if blocked else "") + ". "
+                + (f"{removed} other findings were removed because their source did not hold up." if removed else
+                   "No finding had to be removed."))
     doc = (f'<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Vendor check report</title><style>{CSS}</style></head><body>'
-           f'<div class="cover"><h1>Vendor check report</h1><p class="muted">{len(verdicts)} product(s), '
-           f'{dt.date.today().strftime("%d %B %Y")}. Green: shortlist. Yellow: shortlist only after resolving the '
-           f'yellow flags. Red: do not shortlist. Every flag links to its source and quotes it.</p></div>'
-           f'<table><tr><th></th><th>Product</th><th>Rating</th><th>Flags</th><th>What decided it</th></tr>{rows}</table>'
+           f'<h1>Vendor check report</h1><p class="muted">{len(verdicts)} product(s), checked on '
+           f'{dt.date.today().strftime("%d %B %Y")}. The question for every product: would an enterprise procurement '
+           f'team shortlist it as it stands?</p>'
+           '<div class="howto"><div><b>The rating</b><p><span class="chip green">Green</span> shortlist it</p>'
+           '<p><span class="chip yellow">Yellow</span> shortlist only after resolving the yellow flags</p>'
+           '<p><span class="chip red">Red</span> do not shortlist</p></div>'
+           '<div><b>One product per section</b>Each opens with the rating, the ground that decided it and the evidence '
+           'for that ground; then our reasoning, what we could not verify, and every other flag.</div>'
+           f'<div><b>The evidence</b>{e(evidence)}</div></div>'
+           f'<table class="overview"><tr><th></th><th>Product</th><th>Rating</th><th>What decided it</th><th>Flags</th></tr>{rows}</table>'
            + "".join(_product(v, sigs[v["url"]], (out / f"{cli.slug(v['url'])}.png").is_file()) for v in verdicts) + _method() + "</body></html>")
     html_path, pdf_path = out / "report.html", out / "report.pdf"
     html_path.write_text(doc, encoding="utf-8")

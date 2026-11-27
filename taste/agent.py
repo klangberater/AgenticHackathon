@@ -28,8 +28,10 @@ REASON = {
         "independent": {"type": "boolean", "description": "True if the source is not controlled by the vendor."},
         "source_url": {"type": "string", "description": "A URL you opened in this session that shows the claim."},
         "quote": {"type": "string", "description": "Verbatim excerpt from that page, 6 to 40 words, that itself states the fact."},
+        "decides": {"type": "boolean", "description": "True for the one to three flags whose ground set the verdict; "
+                                                      "their colour is the verdict's colour. False for all others."},
     },
-    "required": ["flag", "claim", "category", "independent", "source_url", "quote"],
+    "required": ["flag", "claim", "category", "independent", "source_url", "quote", "decides"],
     "additionalProperties": False,
 }
 SCHEMA = {
@@ -47,6 +49,8 @@ SCHEMA = {
         "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
         "summary": {"type": "string", "description": "Three to five sentences for the buyer: the call, what decided it, "
                                                      "and what to ask the vendor or check before committing."},
+        "deciding_ground": {"type": "string", "description": "One plain sentence naming the ground that set the verdict, "
+                                                             "as a buyer would put it, without restating the colour."},
         "design_read": {
             "type": "object",
             "description": "What the page looks like, from the screenshots.",
@@ -61,7 +65,7 @@ SCHEMA = {
         "could_not_check": {"type": "array", "items": {"type": "string"}},
     },
     "required": ["product_name", "product_category", "former_names", "vendor_name", "lifecycle", "verdict", "product_real_and_alive",
-                 "company_trustworthy", "confidence", "summary", "design_read", "reasons", "could_not_check"],
+                 "company_trustworthy", "confidence", "summary", "deciding_ground", "design_read", "reasons", "could_not_check"],
     "additionalProperties": False,
 }
 
@@ -116,7 +120,8 @@ that creates a security, legal or geopolitical risk for customers, such as conti
 market, which weighs most for software with deep access to customer systems.
 When grounds for two levels are present and you have confirmed them, the more serious one sets the verdict; do \
 not soften a confirmed red ground to yellow because the product also works or the company is real. Label each \
-flag by the level it would justify on its own, and in the summary say which ground decided the verdict.
+flag by the level it would justify on its own, and in the summary say which ground decided the verdict. State \
+that ground in deciding_ground and set decides on the flags that carry it.
 
 How to investigate:
 - Start by pinning down identity: the product's current name and former names, the legal entity, the parent or \

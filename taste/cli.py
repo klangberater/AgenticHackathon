@@ -122,7 +122,10 @@ def markdown(verdicts: list[dict]) -> str:
         lines += [f"## {v['product_name']}: {v['verdict'].upper()}", "", f"{v['url']}  ",
                   f"{v['product_category']}. Vendor: {v['vendor_name']}  ",
                   f"Lifecycle: {v['lifecycle'].replace('_', ' ')}. Product real and alive: {v['product_real_and_alive']}. "
-                  f"Company trustworthy: {v['company_trustworthy']}. Confidence: {v['confidence']}.", "", v["summary"], ""]
+                  f"Company trustworthy: {v['company_trustworthy']}. Confidence: {v['confidence']}.", ""]
+        if v.get("deciding_ground"):
+            lines += [f"**What decided it:** {v['deciding_ground']}", ""]
+        lines += [v["summary"], ""]
         if v["former_names"]:
             lines += ["Former names: " + ", ".join(v["former_names"]), ""]
         for colour in ("red", "yellow", "green"):
