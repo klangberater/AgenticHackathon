@@ -83,6 +83,15 @@ def judge_one(url: str, out: Path, args) -> dict:
                     v = v2
             except Exception as e:  # the quote check already passed; do not lose the product over this
                 log(url, f"support check failed ({e}); keeping quote-checked reasons")
+        # Both sides of each site-versus-record pair get the same source check; a pair with a side that does not
+        # hold up is left out, since half a comparison misleads.
+        sides = [p[k] for p in v.get("site_vs_record", []) for k in ("site", "record")]
+        if sides:
+            verify.check_all(sides)
+            v["site_vs_record"] = [p for p in v["site_vs_record"]
+                                   if all(p[k]["check"]["status"] not in ("dead", "missing") for k in ("site", "record"))]
+            for s in sides:
+                s["check"].pop("context", None)
         for r in v["reasons"]:
             r["check"].pop("context", None)
         # A reason whose source is dead, lacks the quote or does not carry the claim must not reach the judges.
@@ -132,6 +141,8 @@ def markdown(verdicts: list[dict]) -> str:
         if v.get("deciding_ground"):
             lines += [f"**What decided it:** {v['deciding_ground']}", ""]
         lines += [v["summary"], ""]
+        if v.get("would_change_call"):
+            lines += [f"**What would change the call:** {v['would_change_call']}", ""]
         if v["former_names"]:
             lines += ["Former names: " + ", ".join(v["former_names"]), ""]
         for colour in ("red", "yellow", "green"):

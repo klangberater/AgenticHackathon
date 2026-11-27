@@ -79,6 +79,18 @@ ul, ol { margin: 0 0 2mm; padding-left: 5mm; } li { margin-bottom: 0.8mm; }
 .rubric { white-space: pre-wrap; font-size: 8.5pt; line-height: 1.4; background: var(--wash); padding: 3mm; border-radius: 1.5mm; }
 .nowrap { white-space: nowrap; }
 .gaps { break-inside: avoid; }
+.timeline { break-inside: avoid; }
+.timeline ol { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 2mm; }
+.timeline li { margin: 0; padding: 1.5mm 2.5mm; background: var(--wash); border-radius: 1.5mm; font-size: 8.5pt; color: var(--muted); }
+.timeline li b { display: block; font-size: 10pt; color: var(--ink); }
+.pair { display: grid; grid-template-columns: 1fr 1fr; border: 0.3pt solid var(--rule); border-radius: 2mm; margin-bottom: 3mm; break-inside: avoid; }
+.pair > div { padding: 2.5mm 3mm; }
+.pair > div + div { border-left: 0.3pt solid var(--rule); }
+.pair .lab { font-size: 8.5pt; color: var(--muted); margin-bottom: 1mm; }
+.pair .says { font-weight: 600; margin-bottom: 1.2mm; }
+.pair blockquote { margin: 0 0 1.2mm; padding: 0.8mm 2.5mm; border-left: 1.5pt solid var(--rule); background: var(--wash); font-size: 9pt; }
+.pair .src { font-size: 8.5pt; color: var(--muted); margin: 0; }
+.change { margin: 3mm 0 0; padding: 2.5mm 3.5mm; border: 0.3pt solid var(--rule); border-radius: 2mm; break-inside: avoid; }
 .howto p { margin: 0 0 1.2mm; }
 .look { display: grid; grid-template-columns: 46mm 1fr; gap: 5mm; align-items: start; margin-top: 5mm; break-inside: avoid; }
 .look:not(:has(img)) { grid-template-columns: 1fr; }
@@ -156,6 +168,22 @@ def _facts(sig: dict) -> list[tuple[str, str]]:
     return rows
 
 
+def _timeline(sig: dict) -> list[tuple[str, str]]:
+    """Dated facts from the script's records, oldest first: when the domain, the archive and the activity began and last moved."""
+    reg, wb, certs = sig.get("domain_registration", {}), sig.get("wayback", {}), sig.get("certificates", {})
+    kev, repo, sm = sig.get("exploited_vulnerabilities", {}), sig.get("code_repository", {}), sig.get("sitemap", {})
+    items = [(reg.get("registration"), "domain registered"), (wb.get("first_capture"), "first archived capture"),
+             (certs.get("first_issued"), "first TLS certificate"), (wb.get("last_capture"), "latest archived capture"),
+             (sm.get("newest_lastmod"), "newest sitemap edit"), (repo.get("last_push"), "latest code push"),
+             (kev.get("latest_added") if kev.get("entries") else None, "latest CISA exploited-vulnerability entry")]
+    items += [(a.get("newest"), f"newest {a['kind']} entry") for a in sig.get("publishing_activity", [])]
+    years = sig.get("homepage", {}).get("copyright_years") or []
+    if years:
+        items.append((str(max(years)), "copyright year on the homepage"))
+    out = sorted((str(d)[:10], label) for d, label in items if d and str(d)[:4].isdigit())
+    return out
+
+
 def _gist(v: dict, limit: int = 260) -> str:
     """The start of the summary for the overview, without an opening that only restates the rating."""
     text = v.get("summary") or v.get("error", "")
@@ -188,9 +216,31 @@ def _numbers(v: dict) -> dict[int, str]:
     return out
 
 
+HOLDS = {"yes": ("green", "The record bears it out"), "partly": ("yellow", "The record bears it out in part"),
+         "no": ("red", "The record contradicts it")}
+
+
+def _status(r: dict) -> str:
+    status = CHECK.get(r["check"]["status"], r["check"]["status"])
+    return status + ("; the link opens at the quote" if cli.evidence_link(r) != r["source_url"] else "")
+
+
+def _pairs(v: dict) -> str:
+    """The vendor's claims about itself next to the independent record that tests them."""
+    rows = []
+    for pr in v.get("site_vs_record", []):
+        colour, label = HOLDS.get(pr["holds"], ("yellow", pr["holds"]))
+        side = lambda x, head: (f'<div><p class="lab">{head}</p><p class="says">{e(x["says"])}</p>'
+                                f'<blockquote>“{e(x["quote"])}”</blockquote>'
+                                f'<p class="src">{_link(x["source_url"], cli.evidence_link(x), short=True)}<br>{e(_status(x))}.</p></div>')
+        rows.append(f'<div class="pair">{side(pr["site"], "The vendor says")}'
+                    + side(pr["record"], f'<span class="chip {colour}">{label}</span>') + "</div>")
+    return ("<h3>What the vendor says, and what the record shows</h3>" + "".join(rows)) if rows else ""
+
+
 def _flag(r: dict, no: str) -> str:
     src = "independent source" if r["independent"] else "the vendor's own page"
-    status = CHECK.get(r["check"]["status"], r["check"]["status"])
+    status = _status(r)
     return (f'<div class="flag"><span class="chip no {r["flag"]}">{no}</span><div>'
             f'<p class="claim">{e(r["claim"])}</p><blockquote>“{e(r["quote"])}”</blockquote>'
             f'<p class="src">{_link(r["source_url"], cli.evidence_link(r), short=True)}<br>'
@@ -214,11 +264,18 @@ def _product(v: dict, sig: dict, has_shot: bool = False, has_docs: bool = False)
     if deciding:
         title = "The evidence that decided it" if marked else f"The strongest {LABEL[c].lower()} flags"
         out.append(f"<h3>{title}</h3>" + "".join(_flag(r, no[id(r)]) for r in deciding))
+    out.append(_pairs(v))
     out.append(f'<h3>Our reasoning</h3><p>{e(v["summary"])}</p>')
+    if v.get("would_change_call"):
+        out.append(f'<div class="change"><b>What would change our call:</b> {e(v["would_change_call"])}</div>')
     out.append('<div class="readings">' + "".join(
         f'<div><span class="muted small">{label}</span><b>{e(str(val).replace("_", " "))}</b></div>' for label, val in (
             ("Product real and alive", v["product_real_and_alive"]), ("Company trustworthy", v["company_trustworthy"]),
             ("Lifecycle", v["lifecycle"]), ("Our confidence", v["confidence"]))) + "</div>")
+    tl = _timeline(sig)
+    if len(tl) >= 3:
+        out.append('<div class="timeline"><h3>On the record</h3><ol>' + "".join(
+            f'<li><b>{e(d[:7] if len(d) >= 7 else d)}</b>{e(label)}</li>' for d, label in tl) + "</ol></div>")
     d = v.get("design_read")
     shot = f"{cli.slug(v['url'])}.png"
     if d:
@@ -318,7 +375,8 @@ def build(out: Path) -> Path:
            '<p><span class="chip red">Red</span> do not shortlist</p></div>'
            '<div><b>One product per section</b>Each opens with the rating, the ground that decided it and the evidence '
            'for that ground; then our reasoning, what we could not verify, and every other flag.</div>'
-           f'<div><b>The evidence</b>{e(evidence)}</div></div>'
+           f'<div><b>The evidence</b>{e(evidence)} In a current browser each link opens the source scrolled to the '
+           'quote, with the quote highlighted.</div></div>'
            f'<table class="overview"><tr><th></th><th>Product</th><th>Rating</th><th>What decided it</th><th>Flags</th></tr>{rows}</table>'
            + "".join(_product(v, sigs[v["url"]], (out / f"{cli.slug(v['url'])}.png").is_file(),
                              (out / f"{cli.slug(v['url'])}.docs.png").is_file()) for v in verdicts) + _method() + "</body></html>")
