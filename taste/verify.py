@@ -9,6 +9,7 @@ import re
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 
+from . import browser
 from .collect import fetch, page_text
 
 # ok: quote found. weak: page loads but only part of the quote matches.
@@ -53,8 +54,13 @@ def check_reason(reason: dict) -> dict:
     score = _overlap(quote, text)
     if score >= 0.6:
         return {"status": "ok", "detail": f"{score:.0%} of the quote matched"}
-    if len(text) < 1500:
-        return {"status": "unreadable", "detail": "page renders client-side; could not read its text"}
+    if len(text) < 1500:  # an empty shell: run its scripts and look again
+        text = _norm(page_text(browser.rendered_html(url)))
+        if quote in text or _overlap(quote, text) >= 0.6:
+            return {"status": "ok", "detail": "found after rendering the page in a browser"}
+        if len(text) < 1500:
+            return {"status": "unreadable", "detail": "page renders client-side; could not read its text"}
+        score = _overlap(quote, text)
     if score >= 0.25:
         return {"status": "weak", "detail": f"only {score:.0%} of the quote matched"}
     return {"status": "missing", "detail": "quote not found on the page"}

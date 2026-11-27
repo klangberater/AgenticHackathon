@@ -26,7 +26,11 @@
              placeholder="example.com" aria-describedby="ask-help ask-error">
       <button class="btn" id="go" type="submit">Check vendor</button>
     </div>
-    <p class="help" id="ask-help">A check takes two to four minutes. Every reason links to its source.</p>
+    <div id="code-field" hidden>
+      <label for="code">Access code</label>
+      <input id="code" name="code" type="password" autocomplete="off">
+    </div>
+    <p class="help" id="ask-help">A check takes three to six minutes. Every flag links to its source.</p>
     <p class="error" id="ask-error" role="alert" hidden></p>
   </form>
 
@@ -34,7 +38,7 @@
     <section class="sheet" id="sheet" aria-live="polite" aria-busy="false">
       <div id="empty" class="well">
         <h2>No check open</h2>
-        <p>Enter a product’s website to find out whether the product is real and alive, and whether the company
+        <p id="empty-text">Enter a product’s website to find out whether the product is real and alive, and whether the company
           behind it can be trusted with data and money.</p>
       </div>
 
@@ -64,17 +68,19 @@
           <div>
             <h1 id="v-name"></h1>
             <p class="meta" id="v-vendor"></p>
+            <p class="meta" id="v-former"></p>
             <a id="v-url" rel="noreferrer noopener" target="_blank"></a>
           </div>
         </header>
         <dl class="answers">
           <div><dt>Product real and alive</dt><dd id="a-product"></dd></div>
           <div><dt>Company trustworthy</dt><dd id="a-company"></dd></div>
+          <div><dt>Lifecycle</dt><dd id="a-life"></dd></div>
           <div><dt>Confidence</dt><dd id="a-conf"></dd></div>
         </dl>
         <p class="summary" id="v-summary"></p>
 
-        <h2 class="list-head" id="reasons-head">Reasons</h2>
+        <h2 class="list-head" id="reasons-head">Flags</h2>
         <ol class="reasons" id="reasons"></ol>
 
         <div id="unchecked-box" hidden>
@@ -83,7 +89,7 @@
         </div>
         <div id="dropped-box" hidden>
           <h2 class="list-head">Left out</h2>
-          <p class="meta">These reasons were removed because their source did not load or did not contain the quote.</p>
+          <p class="meta">These flags were removed because their source did not load or did not contain the quote.</p>
           <ul class="plain" id="dropped"></ul>
         </div>
         <p class="meta" id="v-foot"></p>

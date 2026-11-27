@@ -3,7 +3,8 @@
 const $ = (id) => document.getElementById(id);
 const views = ["empty", "running", "failed", "result"];
 const CHECK_LABEL = { ok: "Quote found", weak: "Partly matched", unreadable: "Could not re-read" };
-const DIRECTION = { positive: "For", negative: "Against", neutral: "Note" };
+const FLAG = { green: "Green flag", yellow: "Yellow flag", red: "Red flag" };
+const ORDER = { red: 0, yellow: 1, green: 2 };
 let timer = null;
 
 function show(view) {
@@ -55,9 +56,11 @@ function render(v) {
   if (v.error) return fail(v.error);
   document.title = `${v.product_name}: ${v.verdict}`;
   $("v-word").textContent = v.verdict[0].toUpperCase() + v.verdict.slice(1);
+  $("a-life").textContent = v.lifecycle.replace(/_/g, " ");
+  $("v-former").textContent = v.former_names.length ? `Formerly ${v.former_names.join(", ")}` : "";
   $("v-word").parentElement.dataset.verdict = v.verdict;
   $("v-name").textContent = v.product_name;
-  $("v-vendor").textContent = v.vendor_name;
+  $("v-vendor").textContent = [v.product_category, v.vendor_name].filter(Boolean).join(". ");
   $("v-url").replaceWith(Object.assign(link(v.url), { id: "v-url" }));
   $("a-product").textContent = v.product_real_and_alive;
   $("a-company").textContent = v.company_trustworthy;
@@ -66,10 +69,10 @@ function render(v) {
 
   const list = $("reasons");
   list.replaceChildren();
-  for (const r of v.reasons) {
+  for (const r of [...v.reasons].sort((a, b) => ORDER[a.flag] - ORDER[b.flag])) {
     const li = el("li");
     const side = el("div", "side");
-    side.append(tag(DIRECTION[r.direction] || r.direction, r.direction), tag(r.category), tag(`${r.weight} weight`));
+    side.append(tag(FLAG[r.flag] || r.flag, r.flag), tag(r.category));
     const body = el("div");
     body.append(el("p", "claim", r.claim), el("blockquote", "quote", r.quote));
     const src = el("p", "source");
@@ -81,7 +84,8 @@ function render(v) {
     li.append(side, body);
     list.append(li);
   }
-  $("reasons-head").textContent = `Reasons (${v.reasons.length})`;
+  const n = (c) => v.reasons.filter((r) => r.flag === c).length;
+  $("reasons-head").textContent = `Flags: ${n("red")} red, ${n("yellow")} yellow, ${n("green")} green`;
 
   const fill = (boxId, listId, items, text) => {
     $(boxId).hidden = !items.length;
@@ -129,7 +133,7 @@ async function follow(id, url) {
     $("run-clock").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
     paintStages(stageOf(job.steps));
     if (job.done) {
-      setUrlState({ result: job.url.replace(/^https?:\/\/(www\.)?/, "").toLowerCase().replace(/[^a-z0-9.-]+/g, "_").replace(/^_+|_+$/g, "") });
+      setUrlState({ result: job.url.replace(/^https?:\/\/(www\.)?/, "").toLowerCase().replace(/[^a-z0-9.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 120) });
       render(job.result || { error: "The run ended without a result." });
     }
   };
@@ -175,7 +179,8 @@ async function start(url) {
   }
   busy(true);
   try {
-    const res = await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+    const res = await fetch("/api/jobs", { method: "POST", body: JSON.stringify({ url }),
+      headers: { "Content-Type": "application/json", "X-Access-Code": $("code").value } });
     const body = await res.json();
     if (!res.ok) {
       busy(false);
@@ -194,6 +199,14 @@ async function start(url) {
 
 $("ask").addEventListener("submit", (e) => { e.preventDefault(); start($("url").value.trim()); });
 $("retry").addEventListener("click", () => { show("empty"); $("url").focus(); });
+
+// A static export has no server to run checks; a public server may ask for an access code.
+fetch("/api/config").then((r) => r.json()).then((c) => {
+  $("ask").hidden = c.static;
+  if (c.static || !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) document.querySelector(".bar-note").textContent = "";
+  $("code-field").hidden = !c.token_required;
+  if (c.static) $("empty-text").textContent = "Pick a finished check from the list to read its verdict and sources.";
+}).catch(() => {});
 
 const q = new URLSearchParams(location.search);
 if (q.get("job")) { $("url").value = q.get("url") || ""; follow(q.get("job"), q.get("url") || ""); }

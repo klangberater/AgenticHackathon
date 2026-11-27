@@ -1,10 +1,12 @@
 """Usage:
-  python -m taste run URL [URL ...] [-f urls.txt] [-o out/]   judge products, in parallel
-  python -m taste eval labels.json [-o out/]                  compare verdicts in out/ with labelled calls
+  python -m taste run URL [URL ...] [-f urls.txt|cases.json|labels.csv] [-o out/]   judge products, in parallel
+  python -m taste eval labels.csv [-o out/]        compare verdicts in out/ with labelled calls (url + overall)
 """
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import json
 import re
 import sys
@@ -12,14 +14,14 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import agent, verify
-from .collect import collect, normalize, registrable
+from . import agent, browser, verify
+from .collect import collect, normalize
 
-ICON = {"trust": "TRUST", "caution": "CAUTION", "avoid": "AVOID"}
+COLOURS = ("green", "yellow", "red")
 
 
 def slug(url: str) -> str:
-    return re.sub(r"[^a-z0-9.-]+", "_", re.sub(r"^https?://(www\.)?", "", normalize(url).lower())).strip("_")
+    return re.sub(r"[^a-z0-9.-]+", "_", re.sub(r"^https?://(www\.)?", "", normalize(url).lower())).strip("_")[:120]
 
 
 LISTENERS: dict = {}  # slug -> callable(msg); the web server follows a run through this
@@ -37,8 +39,10 @@ def judge_one(url: str, out: Path, args) -> dict:
         log(url, "collecting signals")
         signals = collect(url)
         (out / f"{slug(url)}.signals.json").write_text(json.dumps(signals, indent=2, ensure_ascii=False))
-        log(url, "investigating")
-        v = agent.judge(url, signals, args.model, args.effort)
+        shot = out / f"{slug(url)}.png"
+        has_shot = browser.screenshot(normalize(url), shot)
+        log(url, "investigating" + ("" if has_shot else " (no screenshot)"))
+        v = agent.judge(url, signals, shot if has_shot else None, args.model, args.effort)
         verify.check_all(v["reasons"])
         bad = verify.failed(v["reasons"])
         if bad and not args.no_repair:
@@ -55,8 +59,8 @@ def judge_one(url: str, out: Path, args) -> dict:
         v["reasons"] = [r for r in v["reasons"] if r not in dropped]
         v["dropped_reasons"] = dropped
         v["url"] = normalize(url)
-        v["_meta"]["wall_seconds"] = round(time.time() - t0)
-        log(url, f"{ICON[v['verdict']]} ({v['confidence']}), {len(v['reasons'])} reasons, "
+        v["_meta"] |= {"wall_seconds": round(time.time() - t0), "screenshot": has_shot}
+        log(url, f"{v['verdict'].upper()} ({v['confidence']}), {len(v['reasons'])} reasons, "
                  f"{len(dropped)} dropped, {v['_meta']['wall_seconds']}s")
     except Exception as e:
         log(url, f"FAILED: {e}")
@@ -65,32 +69,64 @@ def judge_one(url: str, out: Path, args) -> dict:
     return v
 
 
+def flags(v: dict, colour: str) -> list[dict]:
+    return [r for r in v.get("reasons", []) if r["flag"] == colour]
+
+
 def markdown(verdicts: list[dict]) -> str:
     lines = ["# Verdicts", ""]
     for v in verdicts:
         if "error" in v:
             lines += [f"## {v['url']}", "", f"Run failed: {v['error']}", ""]
             continue
-        lines += [f"## {v['product_name']} ({v['vendor_name']}): {ICON[v['verdict']]}", "", v["url"], "",
-                  f"Product real and alive: **{v['product_real_and_alive']}**. Company trustworthy: "
-                  f"**{v['company_trustworthy']}**. Confidence: {v['confidence']}.", "", v["summary"], ""]
-        for r in v["reasons"]:
-            sign = {"positive": "+", "negative": "-", "neutral": "~"}[r["direction"]]
-            flag = "" if r["check"]["status"] == "ok" else f" _(source check: {r['check']['status']})_"
-            lines += [f"- **{sign}** [{r['category']}, {r['weight']}] {r['claim']}  ",
-                      f"  [{r['source_url']}]({r['source_url']}): \"{r['quote']}\"{flag}"]
+        lines += [f"## {v['product_name']}: {v['verdict'].upper()}", "", f"{v['url']}  ",
+                  f"{v['product_category']}. Vendor: {v['vendor_name']}  ",
+                  f"Lifecycle: {v['lifecycle'].replace('_', ' ')}. Product real and alive: {v['product_real_and_alive']}. "
+                  f"Company trustworthy: {v['company_trustworthy']}. Confidence: {v['confidence']}.", "", v["summary"], ""]
+        if v["former_names"]:
+            lines += ["Former names: " + ", ".join(v["former_names"]), ""]
+        for colour in ("red", "yellow", "green"):
+            if flags(v, colour):
+                lines += [f"**{colour.capitalize()} flags**", ""]
+            for r in flags(v, colour):
+                note = "" if r["check"]["status"] == "ok" else f" _(source check: {r['check']['status']})_"
+                lines += [f"- {r['claim']}  ", f"  [{r['source_url']}]({r['source_url']}): \"{r['quote']}\"{note}"]
+            if flags(v, colour):
+                lines.append("")
         if v["could_not_check"]:
-            lines += ["", "Could not check: " + "; ".join(v["could_not_check"])]
-        lines.append("")
+            lines += ["Could not check: " + "; ".join(v["could_not_check"]), ""]
     return "\n".join(lines)
 
 
+def write_csv(verdicts: list[dict], path: Path) -> None:
+    """Same columns as the labelled examples, with the source behind each flag in brackets."""
+    def cell(v, colour):
+        return " ".join(f"{r['claim']} [{r['source_url']}]" for r in flags(v, colour)) or "None identified."
+    with path.open("w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["id", "url", "product", "vendor", "overall", "green_flags", "yellow_flags", "red_flags", "reasoning"])
+        for i, v in enumerate(verdicts, 1):
+            if "error" in v:
+                w.writerow([i, v["url"], "", "", "", "", "", "", f"Run failed: {v['error']}"])
+            else:
+                w.writerow([i, v["url"], f"{v['product_name']} ({v['product_category']})", v["vendor_name"],
+                            v["verdict"].capitalize(),
+                            cell(v, "green"), cell(v, "yellow"), cell(v, "red"), v["summary"]])
+
+
+def read_urls(path: str) -> list[str]:
+    raw = Path(path).read_text(encoding="utf-8-sig")
+    if path.endswith(".json"):
+        return [c["url"] for c in json.loads(raw)]
+    if path.endswith(".csv"):
+        return [r["url"] for r in csv.DictReader(io.StringIO(raw))]
+    return [l.strip() for l in raw.splitlines() if l.strip() and not l.startswith("#")]
+
+
 def cmd_run(args) -> None:
-    urls = list(args.urls)
-    if args.file:
-        raw = Path(args.file).read_text()
-        urls += ([c["url"] for c in json.loads(raw)] if args.file.endswith(".json") else
-                 [l.strip() for l in raw.splitlines() if l.strip() and not l.startswith("#")])
+    urls = list(args.urls) + (read_urls(args.file) if args.file else [])
+    if args.only:
+        urls = [u for u in urls if re.search(args.only, u)]
     if not urls:
         sys.exit("no URLs given")
     out = Path(args.out)
@@ -99,19 +135,30 @@ def cmd_run(args) -> None:
         verdicts = list(ex.map(lambda u: judge_one(u, out, args), urls))
     (out / "verdicts.json").write_text(json.dumps(verdicts, indent=2, ensure_ascii=False))
     (out / "verdicts.md").write_text(markdown(verdicts))
-    print(f"{out / 'verdicts.json'}\n{out / 'verdicts.md'}")
+    write_csv(verdicts, out / "verdicts.csv")
+    print(f"{out / 'verdicts.csv'}\n{out / 'verdicts.json'}\n{out / 'verdicts.md'}")
 
 
 def cmd_eval(args) -> None:
-    """labels.json: [{"url": ..., "verdict": "trust|caution|avoid"}, ...]. Adapt once the real format is known."""
-    labels = {registrable(slug(l["url"]).split("/")[0]): l["verdict"] for l in json.loads(Path(args.labels).read_text())}
-    mine = {registrable(slug(v["url"]).split("/")[0]): v for v in json.loads((Path(args.out) / "verdicts.json").read_text())}
-    hit = 0
-    for dom, want in labels.items():
-        got = mine.get(dom, {}).get("verdict", "(not run)")
-        hit += got == want
-        print(f"{'ok  ' if got == want else 'MISS'} {dom:24} ours={got:10} expected={want}")
-    print(f"{hit}/{len(labels)} match")
+    """Labels: a CSV with `url` and `overall` (Green/Yellow/Red), or JSON with `url` and `verdict`."""
+    raw = Path(args.labels).read_text(encoding="utf-8-sig")
+    rows = list(csv.DictReader(io.StringIO(raw))) if args.labels.endswith(".csv") else json.loads(raw)
+    out = Path(args.out)
+    hit = ran = 0
+    confusion: dict[tuple, int] = {}
+    for row in rows:
+        want = (row.get("overall") or row.get("verdict")).lower()
+        f = out / f"{slug(row['url'])}.json"
+        got = json.loads(f.read_text()).get("verdict", "error") if f.is_file() else "(not run)"
+        if got in COLOURS:
+            ran += 1
+            hit += got == want
+            confusion[(want, got)] = confusion.get((want, got), 0) + 1
+        print(f"{'ok  ' if got == want else 'MISS'} ours={got:9} theirs={want:7} {row['url'][:70]}")
+    print(f"\n{hit}/{ran} match ({len(rows) - ran} not run or failed)")
+    print("theirs \\ ours  " + "  ".join(f"{c:>6}" for c in COLOURS))
+    for want in COLOURS:
+        print(f"{want:13}  " + "  ".join(f"{confusion.get((want, got), 0):>6}" for got in COLOURS))
 
 
 def main() -> None:
@@ -120,6 +167,7 @@ def main() -> None:
     r = sub.add_parser("run")
     r.add_argument("urls", nargs="*")
     r.add_argument("-f", "--file")
+    r.add_argument("--only", help="regex: run only the URLs from --file that match")
     r.add_argument("-o", "--out", default="out")
     r.add_argument("-p", "--parallel", type=int, default=4)
     r.add_argument("--model", default=agent.MODEL)

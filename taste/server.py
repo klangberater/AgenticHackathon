@@ -1,8 +1,17 @@
-"""Local web UI: python -m taste.server [port]. Binds to localhost only."""
+"""Web UI: python -m taste.server [port | /path/to.sock].
+
+Binds to localhost, or to a unix socket if given a path; put a reverse proxy with TLS in front to publish it. Set TASTE_TOKEN to require an
+access code for starting checks (reading finished results stays open), which a public deployment needs:
+every check spends the server's Claude quota.
+"""
 from __future__ import annotations
 
+import hmac
 import json
+import os
 import re
+import socket
+import socketserver
 import sys
 import threading
 import time
@@ -19,7 +28,8 @@ OUT = Path("out/web")
 TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8"}
 JOBS: dict[str, dict] = {}
 ARGS = SimpleNamespace(model=agent.MODEL, effort=agent.EFFORT, no_repair=False)
-MAX_RUNNING = 4
+MAX_RUNNING = int(os.environ.get("TASTE_MAX_RUNNING", "4"))
+TOKEN = os.environ.get("TASTE_TOKEN", "")
 
 
 def run(job: dict) -> None:
@@ -41,9 +51,8 @@ def recent() -> list[dict]:
             v = json.loads(f.read_text())
         except ValueError:
             continue
-        if "verdict" in v:
-            rows.append({"file": f.stem, "url": v["url"], "product": v["product_name"], "verdict": v["verdict"],
-                         "confidence": v["confidence"]})
+        if v.get("verdict") in cli.COLOURS:
+            rows.append({"file": f.stem, "url": v["url"], "product": v["product_name"], "verdict": v["verdict"]})
     return rows[:30]
 
 
@@ -60,6 +69,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = self.path.split("?")[0]
+        if path == "/api/config":
+            return self.send(200, {"static": False, "token_required": bool(TOKEN)})
         if path == "/api/recent":
             return self.send(200, recent())
         if m := re.fullmatch(r"/api/jobs/([0-9a-f]{12})", path):
@@ -67,6 +78,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, job) if job else self.send(404, {"error": "This run is no longer in memory."})
         if m := re.fullmatch(r"/api/results/([a-z0-9._-]+)", path):
             f = OUT / f"{m.group(1)}.json"
+            if ".." in m.group(1):
+                return self.send(404, {"error": "No saved result."})
             return self.send(200, f.read_bytes()) if f.is_file() else self.send(404, {"error": "No saved result."})
         name = "index.html" if path == "/" else path.lstrip("/")
         f = WEB / name
@@ -77,8 +90,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         if self.path != "/api/jobs":
             return self.send(404, {"error": "Not found."})
-        if self.headers.get("Origin", f"http://{self.headers.get('Host')}") != f"http://{self.headers.get('Host')}":
+        origin = self.headers.get("Origin")  # browsers send it on POST; it must be this site, whatever the scheme
+        if origin and origin.split("://", 1)[-1] != self.headers.get("Host"):
             return self.send(403, {"error": "Cross-site requests are not accepted."})
+        if TOKEN and not hmac.compare_digest(self.headers.get("X-Access-Code", ""), TOKEN):
+            return self.send(401, {"error": "That access code is not valid."})
         try:
             url = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0)))).get("url", "").strip()
         except (ValueError, AttributeError):
@@ -97,11 +113,25 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
+class UnixServer(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
+    daemon_threads = True
+
+    def get_request(self):  # the handler logs and reads client_address as a (host, port) pair
+        conn, _ = super().get_request()
+        return conn, ("unix", 0)
+
+
 def main() -> None:
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8787
+    where = sys.argv[1] if len(sys.argv) > 1 else "8787"
     OUT.mkdir(parents=True, exist_ok=True)
-    print(f"http://127.0.0.1:{port}", flush=True)
-    ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()
+    if where.isdigit():
+        print(f"http://127.0.0.1:{where}", flush=True)
+        ThreadingHTTPServer(("127.0.0.1", int(where)), Handler).serve_forever()
+    Path(where).unlink(missing_ok=True)
+    srv = UnixServer(where, Handler)
+    os.chmod(where, 0o660)  # the reverse proxy reaches it through group permission
+    print(f"unix:{where}", flush=True)
+    srv.serve_forever()
 
 
 if __name__ == "__main__":

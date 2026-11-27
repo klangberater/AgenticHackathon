@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import datetime as dt
 import html
+import ipaddress
 import json
 import re
+import socket
 import time
 import urllib.error
 import urllib.parse
@@ -45,12 +47,39 @@ SOCIAL = ("linkedin.com", "github.com", "twitter.com", "x.com", "youtube.com", "
           "g2.com", "capterra", "trustpilot", "apps.apple.com", "play.google.com", "crunchbase.com")
 
 
+def is_public(url: str) -> bool:
+    """True only if the host resolves to public internet addresses.
+
+    The URL comes from whoever uses the tool, and cited sources come from the model, so neither may
+    point this machine at its own network (loopback, private ranges, cloud metadata).
+    """
+    host = urllib.parse.urlparse(url).hostname
+    if not host or urllib.parse.urlparse(url).scheme not in ("http", "https"):
+        return False
+    try:
+        return all(ipaddress.ip_address(info[4][0]).is_global for info in socket.getaddrinfo(host, None))
+    except (OSError, ValueError):
+        return False
+
+
+class _PublicRedirects(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not is_public(newurl):
+            raise urllib.error.URLError(f"redirect to a non-public address refused: {newurl[:100]}")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_OPENER = urllib.request.build_opener(_PublicRedirects)
+
+
 def fetch(url: str, max_bytes: int = MAX_BYTES) -> dict:
     """GET a URL. Never raises; returns status 0 plus an error string on failure."""
+    if not is_public(url):
+        return {"status": 0, "url": url, "text": "", "error": "not a public internet address", "headers": {}}
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "text/html,*/*;q=0.8",
                                                "Accept-Language": "en,de;q=0.8"})
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+        with _OPENER.open(req, timeout=TIMEOUT) as r:
             raw = r.read(max_bytes)
             charset = r.headers.get_content_charset() or "utf-8"
             return {"status": r.status, "url": r.geturl(), "text": raw.decode(charset, "replace"),
@@ -72,9 +101,13 @@ class _Links(HTMLParser):
         self._in_title = False
         self._skip = 0
         self.body: list[str] = []
+        self.images: list[str] = []
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
+        if tag == "img" and (a.get("alt") or a.get("src")):
+            name = (a.get("src") or "").split("?")[0].rsplit("/", 1)[-1][:60]
+            self.images.append(f"{(a.get('alt') or '').strip()[:80]} [{name}]".strip())
         if tag in ("script", "style", "noscript", "svg"):
             self._skip += 1
         elif tag == "a" and a.get("href"):
@@ -205,6 +238,12 @@ def collect(url: str) -> dict:
     if home.get("error"):
         out["homepage"]["error"] = home["error"]
 
+    if home["status"] == 200 and len(page_text(home["text"])) < 1500:
+        rendered = browser.rendered_html(final)  # a JavaScript app: read what a visitor's browser builds
+        if len(page_text(rendered)) > len(page_text(home["text"])):
+            home["text"] = rendered
+            out["homepage"]["rendered_in_browser"] = True
+
     internal: dict[str, str] = {}
     text = ""
     hollow_social: list[str] = []
@@ -231,7 +270,10 @@ def collect(url: str) -> dict:
                               r"next\.js|_next/|gatsby|shopify|carrd|durable\.co|typo3|drupal|joomla)", home["text"], re.I)
         hp["tech_hints"] = sorted({b.lower() for b in builders})
 
+        out["page_text_excerpt"] = text[:7000]
+        out["images_on_page"] = list(dict.fromkeys(p.images))[:70]  # alt text and file name: logo walls show up here
         external: dict[str, str] = {}
+        outbound: dict[str, str] = {}
         key_pages: dict[str, list[str]] = {}
         for href, label in p.links:
             if href.startswith(("mailto:", "tel:", "javascript:", "#")):
@@ -247,7 +289,9 @@ def collect(url: str) -> dict:
                     if re.search(pat, hay) and absu not in key_pages.setdefault(kind, []):
                         if len(key_pages[kind]) < 3:
                             key_pages[kind].append(absu)
-            elif any(s in h for s in SOCIAL) or "status" in h:
+            else:
+                outbound.setdefault(absu, label)
+            if registrable(h) != domain and (any(s in h for s in SOCIAL) or "status" in h):
                 external.setdefault(absu, label)
                 if urllib.parse.urlparse(absu).path in ("", "/") and "status" not in h:
                     hollow_social.append(absu)
@@ -255,6 +299,7 @@ def collect(url: str) -> dict:
         out["missing_key_pages"] = [k for k in ("docs", "help", "pricing", "customers", "about", "legal", "privacy")
                                     if k not in key_pages]
         out["external_profiles"] = list(external)[:25]
+        out["outbound_links"] = [f"{label or '(no text)'} -> {u}" for u, label in list(outbound.items())[:50]]
         out["internal_link_count"] = len(internal)
         if hollow_social:
             out["hollow_social_links"] = sorted(set(hollow_social))
@@ -302,7 +347,7 @@ def collect(url: str) -> dict:
     return out
 
 
-from . import extra  # noqa: E402  (extra imports fetch and page_text from this module)
+from . import browser, extra  # noqa: E402  (extra imports fetch and page_text from this module)
 
 if __name__ == "__main__":
     import sys

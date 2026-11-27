@@ -31,6 +31,8 @@
 .ask input[aria-invalid="true"] { border-color: var(--color-avoid); }
 .ask input:disabled { background: var(--color-paper-2); color: var(--color-muted); }
 .help, .error { margin-top: var(--space-xs); }
+#code-field { margin-top: var(--space-sm); max-width: 280px; display: grid; }
+#code-field input { flex: none; }
 .error { color: var(--color-avoid); font-size: var(--text-sm); font-weight: 600; }
 
 .btn { height: var(--control-h); padding-inline: var(--space-md); border: 1px solid var(--color-ink); border-radius: var(--radius-control);
@@ -62,18 +64,18 @@
 .skeleton i:nth-child(2) { animation-delay: 0.2s; } .skeleton i:nth-child(3) { animation-delay: 0.4s; } .skeleton i:nth-child(4) { animation-delay: 0.6s; }
 @keyframes breathe { from { opacity: 1; } to { opacity: 0.45; } }
 
-.verdict { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-lg); align-items: end; padding-bottom: var(--space-lg); border-bottom: 1px solid var(--color-ink); }
+.verdict { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-lg); align-items: start; padding-bottom: var(--space-lg); border-bottom: 1px solid var(--color-ink); }
 .verdict-word { font-size: clamp(3.5rem, 9vw, 6.5rem); font-weight: 700; letter-spacing: var(--tracking-display); line-height: 0.9; }
-.verdict[data-verdict="trust"] .verdict-word { color: var(--color-accent); }
-.verdict[data-verdict="caution"] .verdict-word { color: var(--color-caution); }
-.verdict[data-verdict="avoid"] .verdict-word { color: var(--color-avoid); }
+.verdict[data-verdict="green"] .verdict-word { color: var(--color-accent); }
+.verdict[data-verdict="yellow"] .verdict-word { color: var(--color-caution); }
+.verdict[data-verdict="red"] .verdict-word { color: var(--color-avoid); }
 .verdict a { font-size: var(--text-sm); font-weight: 600; overflow-wrap: anywhere; }
 .verdict a:hover, .reasons a:hover, .recent-list a:hover { color: var(--color-accent); }
 
-.answers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; border-bottom: 1px solid var(--color-rule); }
+.answers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; border-bottom: 1px solid var(--color-rule); }
 .answers div { padding: var(--space-md) var(--space-md) var(--space-md) 0; }
 .answers dt { font-size: var(--text-sm); color: var(--color-muted); }
-.answers dd { margin: 0; font-size: var(--text-xl); font-weight: 700; letter-spacing: var(--tracking-display); }
+.answers dd { margin: 0; font-size: var(--text-lg); font-weight: 700; letter-spacing: var(--tracking-display); }
 .summary { margin-top: var(--space-lg); font-size: var(--text-lg); line-height: 1.45; color: var(--color-ink-2); max-width: 68ch; }
 
 .list-head { margin-top: var(--space-xl); padding-bottom: var(--space-xs); border-bottom: 1px solid var(--color-ink); max-width: none; }
@@ -86,9 +88,9 @@
 .side { display: grid; gap: var(--space-2xs); align-content: start; justify-items: start; }
 
 .tag { display: inline-block; padding: 1px var(--space-xs); border-radius: var(--radius-pill); border: 1px solid var(--color-rule); font-size: var(--text-xs); line-height: 1.5; color: var(--color-ink-2); white-space: nowrap; }
-.tag[data-tone="positive"], .tag[data-tone="trust"], .tag[data-tone="ok"] { background: var(--color-accent-soft); border-color: var(--color-accent-soft); color: var(--color-accent-soft-ink); }
-.tag[data-tone="negative"], .tag[data-tone="avoid"] { background: var(--color-avoid-soft); border-color: var(--color-avoid-soft); color: var(--color-avoid-soft-ink); }
-.tag[data-tone="caution"], .tag[data-tone="unreadable"], .tag[data-tone="weak"] { background: var(--color-caution-soft); border-color: var(--color-caution-soft); color: var(--color-caution-soft-ink); }
+.tag[data-tone="green"], .tag[data-tone="ok"] { background: var(--color-accent-soft); border-color: var(--color-accent-soft); color: var(--color-accent-soft-ink); }
+.tag[data-tone="red"] { background: var(--color-avoid-soft); border-color: var(--color-avoid-soft); color: var(--color-avoid-soft-ink); }
+.tag[data-tone="yellow"], .tag[data-tone="unreadable"], .tag[data-tone="weak"] { background: var(--color-caution-soft); border-color: var(--color-caution-soft); color: var(--color-caution-soft-ink); }
 
 .plain { margin: var(--space-sm) 0 0; padding-left: 1.2em; color: var(--color-ink-2); max-width: 68ch; }
 .plain li { margin-bottom: var(--space-2xs); overflow-wrap: anywhere; }

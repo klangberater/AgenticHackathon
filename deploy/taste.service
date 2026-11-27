@@ -1,0 +1,32 @@
+[Unit]
+Description=Vendor check (hackathon demo)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=taste
+Group=taste
+WorkingDirectory=/opt/taste/app
+# CLAUDE_CODE_OAUTH_TOKEN=... (from `claude setup-token`), readable by root only.
+EnvironmentFile=/etc/taste.env
+Environment=HOME=/opt/taste PATH=/opt/taste/.local/bin:/usr/local/bin:/usr/bin:/bin TASTE_MAX_RUNNING=3
+ExecStart=/usr/bin/python3 -m taste.server /run/taste/taste.sock
+RuntimeDirectory=taste
+RuntimeDirectoryMode=0750
+Restart=on-failure
+MemoryMax=3G
+
+# This machine is a jump host. The service fetches addresses that visitors type in, so it may only
+# talk to the public internet: no loopback, no private ranges, no metadata endpoints.
+IPAddressDeny=localhost link-local multicast 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10 fc00::/7
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/taste
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+
+[Install]
+WantedBy=multi-user.target
