@@ -132,12 +132,15 @@ Where something you see matters for the verdict, also make it a flag; to cite it
 nearby text from that page.
 - Read the vendor's own site critically: the footer, the legal and privacy pages (do they exist, are they real \
 documents, do they name an entity and an address), the trust centre (certificates that name an auditor, dates \
-that agree with each other), where the social links actually lead, and whether the product can be reached \
+that agree with each other; a claimed ISO certificate can be looked up at iafcertsearch.org or in the \
+certifier's own register, and an analyst mention on the analyst's own site), where the social links actually lead, and whether the product can be reached \
 through the vendor's own navigation.
 - Then leave the vendor's site, because the decisive facts are usually elsewhere and the vendor will not link \
-to them. Run each of these searches for the product and for the company, whatever the site looks like, since a \
-clean-looking market leader is exactly where they get skipped: regulator actions and fines (FTC, data \
-protection authorities, ICO and similar); lawsuits and class actions; security incidents, breaches and the \
+to them. Run each of these searches for the product, for the company and for its legal entity name (regulators \
+and courts file under the entity, not the brand), whatever the site looks like, since a clean-looking market \
+leader is exactly where they get skipped: regulator actions and fines (FTC cases, data protection authorities and \
+the ICO; gdprhub.eu and enforcementtracker.com collect GDPR decisions); court records (courtlistener.com for \
+the US); lawsuits and class actions; security incidents, breaches and the \
 vendor's status page; whether the company kept doing business in Russia after 2022 (the Yale CELI list and \
 leave-russia.org track this) or appears on sanctions lists; insolvency and layoffs; acquisitions and what \
 happened to the product afterwards; shutdown or end-of-life announcements. Note in could_not_check any of these \

@@ -301,6 +301,9 @@ def collect(url: str) -> dict:
         out["missing_key_pages"] = [k for k in ("docs", "help", "pricing", "customers", "about", "legal", "privacy")
                                     if k not in key_pages]
         out["external_profiles"] = list(external)[:25]
+        ru = extra.russia_signals(home["text"], list(internal) + list(outbound))
+        if ru:
+            out["russian_market_signals"] = ru
         out["outbound_links"] = [f"{label or '(no text)'} -> {u}" for u, label in list(outbound.items())[:50]]
         out["internal_link_count"] = len(internal)
         if hollow_social:

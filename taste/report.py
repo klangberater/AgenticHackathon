@@ -105,6 +105,15 @@ def _facts(sig: dict) -> list[tuple[str, str]]:
     lc = sig.get("link_check", {})
     add("Internal links sampled", f"{lc.get('checked')} checked, {len(lc.get('dead', []))} dead" if lc.get("checked") else None)
     add("Pages not found from the homepage", ", ".join(sig.get("missing_key_pages", [])))
+    kev, repo = sig.get("exploited_vulnerabilities", {}), sig.get("code_repository", {})
+    if "entries" in kev:
+        add("CISA exploited-vulnerability catalogue", f"{kev['entries']} entries matching the vendor's name"
+            + (f", latest added {kev['latest_added']}" if kev["entries"] else ""))
+    if repo.get("stars") is not None:
+        add("Code repository", f"{repo['repository']}: {repo['stars']} stars, last push {repo['last_push']}"
+            + (f", top contributor made {repo['top_contributor_share']:.0%} of commits" if "top_contributor_share" in repo else "")
+            + (", archived" if repo.get("archived") else ""))
+    add("Russian-market signs on the page", "; ".join(sig.get("russian_market_signals", [])))
     for h in sig.get("help_and_docs", []):
         if h.get("checked"):
             add("Help or docs page", f"{h['url']}: {h['links_found']} links, {h['checked']} sampled, {len(h['dead'])} dead")

@@ -257,9 +257,97 @@ def onsite(out: dict, home_text: str, root: str, today: dt.date) -> None:
     out["sitemap"] = sitemap(root)
 
 
+_KEV: list | None = None
+KEV_FEED = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+
+
+def exploited_vulnerabilities(domain: str) -> dict:
+    """Entries for this vendor in CISA's catalogue of vulnerabilities known to be exploited in the wild.
+
+    Matched on the domain's name against the catalogue's vendor and product fields, so it is a lead:
+    a short or generic name can match another vendor, and the agent confirms on the catalogue page.
+    """
+    global _KEV
+    name = re.sub(r"[^a-z0-9]", "", domain.split(".")[0].lower())
+    page = f"https://www.cisa.gov/known-exploited-vulnerabilities-catalog?search_api_fulltext={domain.split('.')[0]}"
+    if len(name) < 4:
+        return {}
+    if _KEV is None:
+        try:
+            _KEV = json.loads(fetch(KEV_FEED, 8_000_000)["text"]).get("vulnerabilities", [])
+        except Exception:
+            _KEV = []
+            return {"source_url": page, "error": "catalogue could not be loaded"}
+    hits = [v for v in _KEV if name in re.sub(r"[^a-z0-9]", "", (v.get("vendorProject", "") + v.get("product", "")).lower())]
+    if not hits:
+        return {"source_url": page, "entries": 0}
+    hits.sort(key=lambda v: v.get("dateAdded", ""), reverse=True)
+    return {"source_url": page, "entries": len(hits), "latest_added": hits[0].get("dateAdded"),
+            "used_in_ransomware": sum(v.get("knownRansomwareCampaignUse") == "Known" for v in hits),
+            "examples": [{"cve": v["cveID"], "product": f"{v.get('vendorProject')} {v.get('product')}",
+                          "added": v.get("dateAdded"), "name": v.get("vulnerabilityName", "")[:90]} for v in hits[:5]]}
+
+
+def russia_signals(html_text: str, links: list[str]) -> list[str]:
+    """Signs on the page as it is today that the vendor addresses the Russian market.
+
+    A Russian language version alone is common and proves little; rouble prices, a .ru storefront or a
+    Russian reseller say more. All of it is a lead for the agent to weigh, dated today, not a finding.
+    """
+    found = []
+    if re.search(r'hreflang=["\']ru(?:-ru)?["\']', html_text, re.I):
+        found.append("the page declares a Russian language version (hreflang=ru)")
+    ru_links = sorted({u for u in links if re.search(r"https?://[^/]*\.ru(/|$)|/ru(-ru)?(/|$)", u, re.I)})
+    if ru_links:
+        found.append("links to Russian pages or .ru sites: " + ", ".join(ru_links[:4]))
+    if re.search(r"₽|\bRUB\b|руб\.", html_text):
+        found.append("rouble prices or the RUB currency appear on the page")
+    if re.search(r"Русский|Россия|Москва", html_text):
+        found.append("Russian-language text on the page (for example a language switch or a Russian office)")
+    return found
+
+
+def code_repository(links: list[str]) -> dict:
+    """Who actually writes the code: activity and contributor share of the GitHub repository the site links to."""
+    import os
+    repo = next((m.group(1) for u in links if (m := re.match(r"https?://github\.com/([\w.-]+/[\w.-]+?)(?:\.git)?/?(?:[#?].*)?$", u))), None)
+    org = next((m.group(1) for u in links if (m := re.match(r"https?://github\.com/([\w.-]+)/?$", u))), None)
+
+    def api(path):
+        r = fetch(f"https://api.github.com/{path}", 400_000)
+        try:
+            return json.loads(r["text"]) if r["status"] == 200 else None
+        except ValueError:
+            return None
+    if not repo and org and org.lower() not in ("sponsors", "features", "about"):
+        repos = api(f"users/{org}/repos?sort=pushed&per_page=30") or []
+        repos = [r for r in repos if not r.get("fork")]
+        if repos:
+            repo = max(repos, key=lambda r: r.get("stargazers_count", 0))["full_name"]
+    if not repo:
+        return {}
+    info = api(f"repos/{repo}")
+    if not info:
+        return {"repository": f"https://github.com/{repo}", "note": "GitHub's API did not answer (rate limit or private)"}
+    out = {"repository": info["html_url"], "stars": info.get("stargazers_count"), "forks": info.get("forks_count"),
+           "last_push": (info.get("pushed_at") or "")[:10], "archived": info.get("archived", False),
+           "contributors_url": info["html_url"] + "/graphs/contributors"}
+    people = api(f"repos/{repo}/contributors?per_page=30") or []
+    counts = [p.get("contributions", 0) for p in people if p.get("type") != "Bot"]
+    if counts and sum(counts):
+        out |= {"contributors_listed": len(counts), "top_contributor_share": round(max(counts) / sum(counts), 2),
+                "contributors_with_10_or_more_commits": sum(c >= 10 for c in counts)}
+    return out
+
+
 def offsite(out: dict, domain: str) -> None:
     out["mail_setup"] = dns(domain)
     out["certificates"] = certs(domain)
+    out["exploited_vulnerabilities"] = exploited_vulnerabilities(domain)
+    links = [x.split(" -> ")[-1] for x in out.get("outbound_links", [])] + out.get("external_profiles", [])
+    repo = code_repository(links)
+    if repo:
+        out["code_repository"] = repo
 
 
 def _year(s: str | None) -> int | None:
@@ -336,6 +424,26 @@ def flags(out: dict, today: dt.date) -> None:
         elif h.get("checked") and h.get("article_links_under_this_page", 0) >= 20 and not h.get("dead"):
             solid.append(f"the help or docs page {h['url']} links to {h['article_links_under_this_page']} pages of its own "
                          f"and all {h['checked']} sampled ones load")
+    kev = out.get("exploited_vulnerabilities", {})
+    if kev.get("entries"):
+        f.append(f"CISA lists {kev['entries']} vulnerabilities matching this vendor's name as exploited in the wild, the "
+                 f"latest added {kev['latest_added']}" + (f", {kev['used_in_ransomware']} used in ransomware" if kev["used_in_ransomware"] else "")
+                 + f". Confirm they are this vendor's products and how they were handled: {kev['source_url']}")
+    if out.get("russian_market_signals"):
+        f.append("signs on today's page that the vendor addresses the Russian market (check whether it still sells there): "
+                 + "; ".join(out["russian_market_signals"]))
+    repo = out.get("code_repository", {})
+    if repo.get("archived"):
+        f.append(f"the linked code repository is archived: {repo['repository']}")
+    elif repo.get("last_push") and (today - dt.date.fromisoformat(repo["last_push"])).days > 365:
+        f.append(f"the linked code repository was last pushed to on {repo['last_push']}: {repo['repository']}")
+    if repo.get("top_contributor_share", 0) >= 0.8:
+        f.append(f"one person made {repo['top_contributor_share']:.0%} of the commits among the top contributors of "
+                 f"{repo['repository']} ({repo['contributors_with_10_or_more_commits']} people have 10 or more commits): "
+                 f"{repo['contributors_url']}")
+    elif repo.get("contributors_with_10_or_more_commits", 0) >= 8:
+        solid.append(f"{repo['contributors_with_10_or_more_commits']} people have 10 or more commits in {repo['repository']}, "
+                     f"last push {repo['last_push']}")
     if out.get("hollow_social_links"):
         f.append("social icons link to the platform's front page, not to a profile: " + ", ".join(out["hollow_social_links"][:4]))
     dead = out.get("link_check", {})

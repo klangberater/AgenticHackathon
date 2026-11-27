@@ -203,6 +203,24 @@ def cmd_eval(args) -> None:
             confusion[(want, got)] = confusion.get((want, got), 0) + 1
         print(f"{'ok  ' if got == want else 'MISS'} ours={got:9} theirs={want:7} {row['url'][:70]}")
     print(f"\n{hit}/{ran} match ({len(rows) - ran} not run or failed)")
+    # One level off costs half, two levels (green for a red, or red for a green) costs everything.
+    dist = lambda pair: abs(COLOURS.index(pair[0]) - COLOURS.index(pair[1]))
+    weighted = sum(n * (1 - dist(pair) / 2) for pair, n in confusion.items())
+    print(f"weighted score {weighted:.1f}/{ran} (one level off = 0.5); two-level errors: "
+          f"{sum(n for pair, n in confusion.items() if dist(pair) == 2)}")
+    checks, removed, yellow = {}, {}, 0
+    for row in rows:
+        f = out / f"{slug(row['url'])}.json"
+        v = json.loads(f.read_text()) if f.is_file() else {}
+        yellow += v.get("verdict") == "yellow"
+        for r in v.get("reasons", []):
+            checks[r["check"]["status"]] = checks.get(r["check"]["status"], 0) + 1
+        for r in v.get("dropped_reasons", []):
+            removed[r["check"]["status"]] = removed.get(r["check"]["status"], 0) + 1
+    print(f"evidence: {checks.get('ok', 0)}/{sum(checks.values())} cited sources confirmed on re-opening, "
+          f"others {dict((k, n) for k, n in checks.items() if k != 'ok')}; removed before output {removed or 'none'}")
+    if ran and yellow / ran > 0.5:
+        print(f"note: {yellow}/{ran} calls are yellow, more than half; the agent may be playing safe")
     print("theirs \\ ours  " + "  ".join(f"{c:>6}" for c in COLOURS))
     for want in COLOURS:
         print(f"{want:13}  " + "  ".join(f"{confusion.get((want, got), 0):>6}" for got in COLOURS))
