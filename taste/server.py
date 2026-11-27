@@ -83,6 +83,21 @@ class Handler(BaseHTTPRequestHandler):
             if ".." in m.group(1):
                 return self.send(404, {"error": "No saved result."})
             return self.send(200, f.read_bytes()) if f.is_file() else self.send(404, {"error": "No saved result."})
+        if m := re.fullmatch(r"/api/report/([a-z0-9._-]+)\.pdf", path):
+            name, src = m.group(1), OUT / f"{m.group(1)}.json"
+            if ".." in name or not src.is_file():
+                return self.send(404, {"error": "No saved result."})
+            from . import report  # one-product report, built on request
+            work = OUT / "pdf" / name
+            work.mkdir(parents=True, exist_ok=True)
+            (work / "verdicts.json").write_text(json.dumps([json.loads(src.read_text())]))
+            sig = OUT / f"{name}.signals.json"
+            if sig.is_file():
+                (work / sig.name).write_bytes(sig.read_bytes())
+            made = report.build(work)
+            if made.suffix != ".pdf":
+                return self.send(200, made.read_bytes(), "text/html; charset=utf-8")
+            return self.send(200, made.read_bytes(), "application/pdf")
         name = "index.html" if path == "/" else path.lstrip("/")
         f = WEB / name
         if "/" in name or f.suffix not in TYPES or not f.is_file():

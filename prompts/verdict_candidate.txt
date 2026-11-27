@@ -1,0 +1,50 @@
+The verdict answers one question: would an enterprise procurement team shortlist this product as it stands?
+
+STEP 0 — IDENTIFY WHAT IS BEING BOUGHT
+State in one line: product name, the vendor's legal entity (name + register/jurisdiction), the licence or tier this URL refers to, and the pricing model. Any gap here is itself a finding.
+
+EVIDENCE RULES
+- Every flag needs a URL a human can open. No URL, no flag.
+- Tag each source: first-party (vendor's own site, docs, press releases), third-party (register, regulator, court, the customer's own site, independent press, package registry, review platform), or archive (Wayback snapshot).
+- Self-published claims (customers, traction, certifications, investors, team size) cannot confirm themselves. Only third-party sources confirm or contradict them.
+- A ground is CONFIRMED when a third-party source shows it, or when the vendor's own pages contradict each other. Absence ("no legal entity", "investor didn't fund them") is confirmed only after you searched where it would appear: the register of the stated country, the investor's portfolio, the customer's own site.
+- Looks are weak evidence in both directions. Dated design, old copyright years and messy navigation do not move the verdict. Polish proves nothing.
+
+Decide in this order. The highest level with a confirmed ground sets the verdict.
+
+RED — no. Test: what the vendor presents and what can be verified have come apart on something a buyer relies on, or there is nothing viable to buy.
+- A regulator or court found the vendor's claims deceptive or its data handling unlawful.
+- The core promise is shown to be false.
+- Misleading social proof: a "customer" logo row that is mostly partner, programme or certification badges; investors who funded someone else; a wall of customers next to a company page with a handful of followers.
+- Large traction numbers that cannot be verified, jump implausibly or contradict each other, combined with no identifiable legal entity or address (no contracting party = not procurable, even if the tool works).
+- Discontinued or announced end-of-life.
+- A one-person project selling to regulated or security-critical buyers with improvised legal documents and no customers anyone can name.
+- Undisclosed conduct that creates security, legal or geopolitical risk for customers (e.g. still serving a sanctioned market), weighted most for software with deep access to customer systems.
+
+YELLOW — yes, after the buyer resolves something specific. Test: you can name the question, and the vendor could answer it in a call or a document.
+- Unclear what is being bought: one name covers different licences or tiers, repeated renames, pricing through bundles or tokens. This applies to the largest vendors too: if Step 0 took real work, it will for the buyer.
+- Uncertain future: legacy, superseded, missing from the vendor's own navigation, or overlapping with a sibling product after an acquisition with no public roadmap.
+- Ownership risk: many owner changes plus high lock-in; an owner with a record of cutting staff and raising prices on products it buys.
+- Incidents: serious and recent and unresolved, or disclosed only where customers won't see it; widely used software that depends on one person and was recently compromised.
+- Size mismatch: a hobby project or very small vendor offered for business use; selling to regulated industries without a recognised security certification (SOC 2, ISO 27001 or the sector equivalent).
+- Not launched yet.
+- Abandoned, not just dated: broken signup, help centre 404s, no changelog/releases/status updates for 12+ months, while the company itself appears alive.
+- Any red ground you suspect but could not confirm after searching. State what the buyer must verify.
+
+GREEN — the default when neither of the above applies. Many green products deserve yellow FLAGS without a yellow VERDICT: a complicated ownership history, a private-equity owner, a recent leadership change, a single maintainer with a decades-long record, a terrible-looking website, a sprawling portfolio, a past incident that was handled openly. A young, small company that is exactly what it says it is (credible backing, a working product, honest pricing, no pretence of size) is green. Downgrading a solid product over looks, history or age is a miss.
+
+SAME SIGNAL, DIFFERENT LEVEL
+- Dated site + active releases → green. Dated site + dead help/signup/changelog → yellow. EOL announced → red.
+- Solo maintainer, long clean record → green. Solo + recent compromise → yellow. Solo selling to regulated buyers, improvised legal docs, no nameable customers → red.
+- Small and honest → green. Small but pitched for enterprise use without certifications → yellow. Small, claiming scale it can't show, no legal entity → red.
+- Logos: verifiable as customers → no flag. Unverifiable → yellow flag. Mostly badges or partners presented as customers → red.
+
+BEFORE YOU ANSWER
+Make the strongest case for the verdict one level higher and one level lower. Change the verdict only if that case rests on confirmed evidence.
+
+OUTPUT
+- identity: the Step 0 line, in the `identity` field
+- reasons: each flag labelled by the level it would justify on its own, with its `source_type` and whether it is `confirmed`
+- verdict: the highest level among confirmed flags (unconfirmed red counts as yellow)
+- summary: which ground decided the verdict, and what would change it
+

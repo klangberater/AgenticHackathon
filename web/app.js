@@ -109,6 +109,7 @@ function render(v) {
   fill("unchecked-box", "unchecked", v.could_not_check || [], (s) => s);
   fill("dropped-box", "dropped", v.dropped_reasons || [], (r) => `${r.claim} (${r.source_url})`);
   const secs = v._meta && v._meta.wall_seconds;
+  $("v-pdf").href = `/api/report/${slugOf(v.url)}.pdf`;
   $("v-foot").textContent = secs ? `Checked in ${Math.floor(secs / 60)} min ${secs % 60} s.` : "";
   show("result");
   loadRecent();

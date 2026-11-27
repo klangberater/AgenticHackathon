@@ -1,5 +1,6 @@
 """Usage:
   python -m taste run URL [URL ...] [-f urls.txt|cases.json|labels.csv] [-o out/]   judge products, in parallel
+  python -m taste report out/                      rebuild report.pdf from the results in a folder
   python -m taste eval labels.csv [-o out/]        compare verdicts in out/ with labelled calls (url + overall)
 """
 from __future__ import annotations
@@ -173,7 +174,13 @@ def cmd_run(args) -> None:
     (out / "verdicts.json").write_text(json.dumps(verdicts, indent=2, ensure_ascii=False))
     (out / "verdicts.md").write_text(markdown(verdicts))
     write_csv(verdicts, out / "verdicts.csv")
-    print(f"{out / 'verdicts.csv'}\n{out / 'verdicts.json'}\n{out / 'verdicts.md'}")
+    from . import report  # imported here: report imports this module
+    print(f"{report.build(out)}\n{out / 'verdicts.csv'}\n{out / 'verdicts.json'}\n{out / 'verdicts.md'}")
+
+
+def cmd_report(args) -> None:
+    from . import report
+    print(report.build(Path(args.out)))
 
 
 def cmd_eval(args) -> None:
@@ -212,6 +219,9 @@ def main() -> None:
     r.add_argument("--no-repair", action="store_true")
     r.add_argument("--no-support-check", action="store_true")
     r.set_defaults(fn=cmd_run)
+    p = sub.add_parser("report", help="rebuild report.pdf from the results in a folder")
+    p.add_argument("out")
+    p.set_defaults(fn=cmd_report)
     e = sub.add_parser("eval")
     e.add_argument("labels")
     e.add_argument("-o", "--out", default="out")

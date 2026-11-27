@@ -180,6 +180,18 @@ forms, sign up, or contact the vendor. Run searches and fetches in parallel wher
 digging would not change the verdict or add a flag a buyer needs."""
 
 
+# Experiments: TASTE_VERDICT_FILE swaps the verdict section of the prompt for the text in that file and adds
+# the fields it asks for, so a candidate rubric can be scored against the same cases without touching the default.
+if os.environ.get("TASTE_VERDICT_FILE"):
+    _i, _j = SYSTEM.index("The verdict answers one question"), SYSTEM.index("How to investigate:")
+    SYSTEM = SYSTEM[:_i] + Path(os.environ["TASTE_VERDICT_FILE"]).read_text() + SYSTEM[_j:]
+    REASON["properties"] |= {"source_type": {"type": "string", "enum": ["first-party", "third-party", "archive"]},
+                             "confirmed": {"type": "boolean"}}
+    REASON["required"] += ["source_type", "confirmed"]
+    SCHEMA["properties"]["identity"] = {"type": "string"}
+    SCHEMA["required"].append("identity")
+
+
 def judge(url: str, signals: dict, screenshot: Path | None = None, model: str = MODEL, effort: str = EFFORT) -> dict:
     """Run one investigation. Returns the structured verdict plus `_meta`."""
     text = (f"Assess this software product: {url}\n\n"
