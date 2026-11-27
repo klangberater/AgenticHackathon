@@ -99,6 +99,11 @@ function render(v) {
   loadRecent();
 }
 
+// Same naming as the server uses for result files.
+function slugOf(url) {
+  return url.replace(/^https?:\/\//i, "").toLowerCase().replace(/^www\./, "").replace(/[^a-z0-9.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 120);
+}
+
 function stageOf(steps) {
   const last = steps.length ? steps[steps.length - 1].text : "";
   if (/repairing|sources did not/.test(last)) return "verify";
@@ -125,6 +130,7 @@ async function follow(id, url) {
     try {
       const res = await fetch(`/api/jobs/${id}`);
       job = await res.json();
+      if (res.status === 404 && url) { clearInterval(timer); busy(false); return openResult(slugOf(url)); }
       if (!res.ok) return fail(job.error);
     } catch {
       return fail("Lost the connection to the local server. Is it still running?");
@@ -133,7 +139,7 @@ async function follow(id, url) {
     $("run-clock").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
     paintStages(stageOf(job.steps));
     if (job.done) {
-      setUrlState({ result: job.url.replace(/^https?:\/\/(www\.)?/, "").toLowerCase().replace(/[^a-z0-9.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 120) });
+      setUrlState({ result: slugOf(job.url) });
       render(job.result || { error: "The run ended without a result." });
     }
   };

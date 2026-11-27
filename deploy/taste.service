@@ -14,6 +14,11 @@ ExecStart=/usr/bin/python3 -m taste.server /run/taste/taste.sock
 RuntimeDirectory=taste
 RuntimeDirectoryMode=0750
 Restart=on-failure
+# A restart (every deploy) lets running checks finish: the service gets SIGTERM, stops taking new
+# checks and exits once the running ones are done. Only the main process is signalled, so the
+# claude and browser children of a running check are left alone. After 11 minutes it is killed.
+KillMode=mixed
+TimeoutStopSec=660
 MemoryMax=3G
 
 # This machine is a jump host. The service fetches addresses that visitors type in, so it may only

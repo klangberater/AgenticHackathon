@@ -10,6 +10,7 @@ import hmac
 import json
 import os
 import re
+import signal
 import socket
 import socketserver
 import sys
@@ -30,6 +31,7 @@ JOBS: dict[str, dict] = {}
 ARGS = SimpleNamespace(model=agent.MODEL, effort=agent.EFFORT, no_repair=False)
 MAX_RUNNING = int(os.environ.get("TASTE_MAX_RUNNING", "4"))
 TOKEN = os.environ.get("TASTE_TOKEN", "")
+DRAINING = threading.Event()  # set on SIGTERM: finish running checks, accept no new ones, then exit
 
 
 def run(job: dict) -> None:
@@ -101,6 +103,8 @@ class Handler(BaseHTTPRequestHandler):
             url = ""
         if not re.fullmatch(r"(https?://)?[a-z0-9-]+(\.[a-z0-9-]+)+(/\S*)?", url, re.I) or len(url) > 300:
             return self.send(400, {"error": "Enter a website address such as example.com."})
+        if DRAINING.is_set():
+            return self.send(503, {"error": "An update is being installed. Try again in a minute."})
         if sum(not j["done"] for j in JOBS.values()) >= MAX_RUNNING:
             return self.send(429, {"error": f"{MAX_RUNNING} checks are already running. Wait for one to finish."})
         jid = uuid.uuid4().hex[:12]
@@ -121,16 +125,37 @@ class UnixServer(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
         return conn, ("unix", 0)
 
 
+def drain(srv, grace: float = 6.0) -> None:
+    """Stop for a restart without cutting off a check: wait for running ones, give browsers a
+    moment to collect the result, then shut down. The unit's TimeoutStopSec bounds the wait."""
+    if DRAINING.is_set():
+        return
+    DRAINING.set()
+
+    def wait() -> None:
+        running = sum(not j["done"] for j in JOBS.values())
+        if running:
+            print(f"stop requested: waiting for {running} running check(s)", file=sys.stderr, flush=True)
+            while any(not j["done"] for j in JOBS.values()):
+                time.sleep(1)
+            time.sleep(grace)
+        srv.shutdown()
+
+    threading.Thread(target=wait, daemon=True).start()
+
+
 def main() -> None:
     where = sys.argv[1] if len(sys.argv) > 1 else "8787"
     OUT.mkdir(parents=True, exist_ok=True)
     if where.isdigit():
+        srv = ThreadingHTTPServer(("127.0.0.1", int(where)), Handler)
         print(f"http://127.0.0.1:{where}", flush=True)
-        ThreadingHTTPServer(("127.0.0.1", int(where)), Handler).serve_forever()
-    Path(where).unlink(missing_ok=True)
-    srv = UnixServer(where, Handler)
-    os.chmod(where, 0o660)  # the reverse proxy reaches it through group permission
-    print(f"unix:{where}", flush=True)
+    else:
+        Path(where).unlink(missing_ok=True)
+        srv = UnixServer(where, Handler)
+        os.chmod(where, 0o660)  # the reverse proxy reaches it through group permission
+        print(f"unix:{where}", flush=True)
+    signal.signal(signal.SIGTERM, lambda *_: drain(srv))
     srv.serve_forever()
 
 

@@ -21,7 +21,7 @@ jobs:
     name: Deploy vendor check
     if: github.repository == 'klangberater/AgenticHackathon'
     runs-on: [self-hosted, Linux, taste-deploy]
-    timeout-minutes: 5
+    timeout-minutes: 15   # the restart waits for running checks to finish
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
