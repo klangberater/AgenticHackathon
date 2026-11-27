@@ -4,7 +4,6 @@ const $ = (id) => document.getElementById(id);
 const views = ["empty", "running", "failed", "result"];
 const CHECK_LABEL = { ok: "Quote found", weak: "Partly matched", unreadable: "Could not re-read" };
 const FLAG = { green: "Green flag", yellow: "Yellow flag", red: "Red flag" };
-const ORDER = { red: 0, yellow: 1, green: 2 };
 let timer = null;
 
 function show(view) {
@@ -67,24 +66,31 @@ function render(v) {
   $("a-conf").textContent = v.confidence;
   $("v-summary").textContent = v.summary;
 
+  // Flags are filed by colour, the most serious first, the way a buyer reads them.
   const list = $("reasons");
   list.replaceChildren();
-  for (const r of [...v.reasons].sort((a, b) => ORDER[a.flag] - ORDER[b.flag])) {
-    const li = el("li");
-    const side = el("div", "side");
-    side.append(tag(FLAG[r.flag] || r.flag, r.flag), tag(r.category));
-    const body = el("div");
-    body.append(el("p", "claim", r.claim), el("blockquote", "quote", r.quote));
-    const src = el("p", "source");
-    src.append(link(r.source_url));
-    if (r.independent) src.append(tag("Independent source"));
-    const status = r.check ? r.check.status : "";
-    if (status) src.append(tag(CHECK_LABEL[status] || status, status));
-    body.append(src);
-    li.append(side, body);
-    list.append(li);
-  }
   const n = (c) => v.reasons.filter((r) => r.flag === c).length;
+  for (const colour of ["red", "yellow", "green"]) {
+    if (!n(colour)) continue;
+    const group = el("section", "flags panel");
+    group.dataset.flag = colour;
+    const head = el("h3", "panel-head", `${FLAG[colour]}s`);
+    head.append(el("span", "count", String(n(colour))));
+    const rows = el("ol");
+    for (const r of v.reasons.filter((x) => x.flag === colour)) {
+      const li = el("li");
+      li.append(el("p", "claim", r.claim), el("blockquote", "quote", r.quote));
+      const src = el("p", "source");
+      src.append(link(r.source_url), tag(r.category));
+      if (r.independent) src.append(tag("Independent source"));
+      const status = r.check ? r.check.status : "";
+      if (status) src.append(tag(CHECK_LABEL[status] || status, status));
+      li.append(src);
+      rows.append(li);
+    }
+    group.append(head, rows);
+    list.append(group);
+  }
   $("reasons-head").textContent = `Flags: ${n("red")} red, ${n("yellow")} yellow, ${n("green")} green`;
 
   const fill = (boxId, listId, items, text) => {

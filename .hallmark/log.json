@@ -1,5 +1,28 @@
 [
  {
+  "mode": "redesign",
+  "depth": "full",
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "console",
+  "axes": "dark/grotesk-sans/chromatic-amber",
+  "nav": "top bar, wordmark only, kept",
+  "footer": "none",
+  "imagery": "none",
+  "photos": [],
+  "entry": "web/index.html",
+  "signature": "the verdict record: one panel cut by seams, then flags filed by colour",
+  "sections": [
+   "form rail",
+   "verdict record",
+   "flags by colour",
+   "earlier checks"
+  ],
+  "waived": [],
+  "prompt": "tool for software buyers: vendor verdict with sourced flags",
+  "date": "2026-11-27"
+ },
+ {
   "scope": "app",
   "shape": "app screen",
   "theme": "ink",

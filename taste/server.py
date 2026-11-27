@@ -53,7 +53,7 @@ def recent() -> list[dict]:
             v = json.loads(f.read_text())
         except ValueError:
             continue
-        if v.get("verdict") in cli.COLOURS:
+        if isinstance(v, dict) and v.get("verdict") in cli.COLOURS:
             rows.append({"file": f.stem, "url": v["url"], "product": v["product_name"], "verdict": v["verdict"]})
     return rows[:30]
 
