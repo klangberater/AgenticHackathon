@@ -1,6 +1,7 @@
 // Everything from the agent is set with textContent, and only http(s) links become anchors:
 // the verdict quotes third-party pages, so it is treated as untrusted text.
 const $ = (id) => document.getElementById(id);
+if (new URLSearchParams(location.search).get("theme") === "paper") document.documentElement.dataset.theme = "paper";
 const views = ["empty", "running", "failed", "result"];
 const CHECK_LABEL = { ok: "Quote found", weak: "Partly matched", unreadable: "Could not re-read" };
 const FLAG = { green: "Green flag", yellow: "Yellow flag", red: "Red flag" };

@@ -12,6 +12,20 @@
   --radius-control: 6px; --control-h: 40px;
 }
 
+/* Console's paper colourway: the same system on a light ground. */
+:root[data-theme="paper"] {
+  color-scheme: light;
+  --color-paper: oklch(98% 0.006 85); --color-paper-2: oklch(99.6% 0.003 85); --color-paper-3: oklch(95.5% 0.008 85);
+  --color-ink: oklch(19% 0.010 60); --color-ink-2: oklch(30% 0.010 60); --color-muted: oklch(46% 0.012 60);
+  --color-rule: oklch(88% 0.008 85); --color-rule-2: oklch(76% 0.010 85);
+  --color-accent: oklch(54% 0.14 70); --color-accent-hover: oklch(49% 0.13 70); --color-accent-ink: oklch(99% 0.01 85);
+  --color-accent-soft: oklch(93% 0.05 80); --color-focus: oklch(54% 0.14 70);
+  --color-cool: oklch(52% 0.14 250); --color-cool-soft: oklch(93.5% 0.035 250);
+  --color-ok: oklch(46% 0.13 150); --color-ok-soft: oklch(94.5% 0.04 150);
+  --color-bad: oklch(51% 0.19 27); --color-bad-soft: oklch(94.5% 0.035 27);
+  --color-warn: oklch(50% 0.11 92); --color-warn-soft: oklch(94% 0.075 98);
+}
+
 body { color: var(--color-ink-2); }
 h1, h2, h3 { color: var(--color-ink); }
 .measured, .quote, .source a, #v-url, .answers dd, .count { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; }
