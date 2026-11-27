@@ -57,6 +57,9 @@ ul { margin: 0 0 2mm; padding-left: 5mm; } li { margin-bottom: 0.8mm; }
 .rubric { white-space: pre-wrap; font-size: 8.5pt; line-height: 1.4; background: #f4f3ee; padding: 3mm; border-radius: 1.5mm; }
 .cover { margin-bottom: 6mm; }
 .nowrap { white-space: nowrap; }
+.design { display: grid; grid-template-columns: 1fr 62mm; gap: 5mm; align-items: start; break-inside: avoid; }
+.design h3 { margin-top: 4mm; }
+.design img { width: 62mm; height: 72mm; object-fit: cover; object-position: top; border: 0.3pt solid #cfcec8; border-radius: 1.5mm; margin-top: 4mm; }
 """
 
 e = html.escape
@@ -102,6 +105,9 @@ def _facts(sig: dict) -> list[tuple[str, str]]:
     lc = sig.get("link_check", {})
     add("Internal links sampled", f"{lc.get('checked')} checked, {len(lc.get('dead', []))} dead" if lc.get("checked") else None)
     add("Pages not found from the homepage", ", ".join(sig.get("missing_key_pages", [])))
+    for h in sig.get("help_and_docs", []):
+        if h.get("checked"):
+            add("Help or docs page", f"{h['url']}: {h['links_found']} links, {h['checked']} sampled, {len(h['dead'])} dead")
     add("Note", sig.get("blocked_note"))
     return rows
 
@@ -116,7 +122,7 @@ def _gist(v: dict, limit: int = 260) -> str:
     return text if len(text) <= limit else text[:limit].rsplit(" ", 1)[0] + " …"
 
 
-def _product(v: dict, sig: dict) -> str:
+def _product(v: dict, sig: dict, has_shot: bool = False) -> str:
     if "error" in v:
         return f'<section class="product"><h2>{e(v["url"])}</h2><p>The run failed: {e(v["error"])}</p></section>'
     c = v["verdict"]
@@ -133,6 +139,13 @@ def _product(v: dict, sig: dict) -> str:
             ("Product real and alive", v["product_real_and_alive"]), ("Company trustworthy", v["company_trustworthy"]),
             ("Lifecycle", v["lifecycle"]), ("Confidence", v["confidence"]))) + "</div>")
     out.append(f'<h3>Why this rating</h3><p>{e(v["summary"])}</p>')
+    d = v.get("design_read")
+    if d:
+        shot = f"{cli.slug(v['url'])}.png"
+        out.append('<div class="design"><div><h3>What the page looks like</h3>'
+                   f'<p><b>Design era:</b> {e(d["era"])}</p><ul>' + "".join(f"<li>{e(x)}</li>" for x in d["observations"])
+                   + f'</ul><p><b>What that tells a buyer:</b> {e(d["bearing"])}</p></div>'
+                   + (f'<img src="{e(shot, quote=True)}" alt="Screenshot of the top of the page">' if has_shot else "") + "</div>")
     for colour in ("red", "yellow", "green"):
         fl = cli.flags(v, colour)
         if not fl:
@@ -174,9 +187,9 @@ def _method() -> str:
     return f"""<section class="product"><h2>How these ratings were produced</h2>
 <h3>Process</h3>
 <ol>
-<li><b>A script collects facts, without AI.</b> Domain registration and archive history, mail and certificate setup, VAT and register numbers on the legal page, dead links, dates on changelog and blog pages, the site's own claims about its age and size, and a screenshot. It cross-checks them, for example a large customer claim on a young domain.</li>
+<li><b>A script collects facts, without AI.</b> Domain registration and archive history, mail and certificate setup, VAT and register numbers on the legal page, dead links, a sample of the help and docs articles, dates on changelog and blog pages, the site's own claims about its age and size, and two screenshots (the top of the page and the whole page). It cross-checks them, for example a large customer claim on a young domain.</li>
 <li><b>An AI agent investigates like a buyer.</b> It receives those facts and the screenshot, then searches the web for what the vendor's site does not say: regulator actions, lawsuits, incidents, ownership, customers confirming from their side, signs of ongoing development, and what is normal among one or two direct competitors.</li>
-<li><b>The agent rates the product</b> against the rubric below and files each finding as a green, yellow or red flag with a source link and a verbatim quote. The most serious confirmed ground sets the rating.</li>
+<li><b>The agent rates the product</b> against the rubric below and describes what the page looks like from the screenshots, and files each finding as a green, yellow or red flag with a source link and a verbatim quote. The most serious confirmed ground sets the rating.</li>
 <li><b>Code re-opens every source.</b> A finding is removed if its page does not load or does not contain the quote. A second, separate AI check then compares each claim with the passage around its quote and removes claims the passage does not carry.</li>
 </ol>
 <h3>Assumptions and limits</h3>
@@ -210,7 +223,7 @@ def build(out: Path) -> Path:
            f'{dt.date.today().strftime("%d %B %Y")}. Green: shortlist. Yellow: shortlist only after resolving the '
            f'yellow flags. Red: do not shortlist. Every flag links to its source and quotes it.</p></div>'
            f'<table><tr><th></th><th>Product</th><th>Rating</th><th>Flags</th><th>What decided it</th></tr>{rows}</table>'
-           + "".join(_product(v, sigs[v["url"]]) for v in verdicts) + _method() + "</body></html>")
+           + "".join(_product(v, sigs[v["url"]], (out / f"{cli.slug(v['url'])}.png").is_file()) for v in verdicts) + _method() + "</body></html>")
     html_path, pdf_path = out / "report.html", out / "report.pdf"
     html_path.write_text(doc, encoding="utf-8")
     exe = browser.binary()

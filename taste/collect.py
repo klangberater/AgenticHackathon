@@ -102,6 +102,7 @@ class _Links(HTMLParser):
         self._skip = 0
         self.body: list[str] = []
         self.images: list[str] = []
+        self.hrefs: list[str] = []
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
@@ -112,6 +113,7 @@ class _Links(HTMLParser):
             self._skip += 1
         elif tag == "a" and a.get("href"):
             self._href, self._text = a["href"], []
+            self.hrefs.append(a["href"])
         elif tag == "meta":
             name = (a.get("name") or a.get("property") or "").lower()
             if name and a.get("content"):

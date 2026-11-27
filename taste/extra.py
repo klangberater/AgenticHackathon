@@ -189,6 +189,49 @@ def claims(text: str) -> dict:
     return out
 
 
+def help_centre(url: str, sample: int = 8) -> dict:
+    """Open the help or docs page and try a sample of the articles it links to.
+
+    A help centre that exists as a link but whose articles are missing is one of the cheapest things
+    to fake, and one a buyer notices only after signing.
+    """
+    import urllib.parse
+    from .collect import _Links
+    r = fetch(url)
+    if r["status"] != 200:
+        return {"url": url, "status": r["status"]}
+    p = _Links()
+    try:
+        p.feed(r["text"])
+    except Exception:
+        pass
+    host, here = urllib.parse.urlparse(r["url"]).hostname, urllib.parse.urldefrag(r["url"])[0].rstrip("/")
+    links = []
+    for href in p.hrefs:
+        u = urllib.parse.urldefrag(urllib.parse.urljoin(r["url"], href))[0]
+        pu = urllib.parse.urlparse(u)
+        if pu.hostname == host and u.rstrip("/") != here and len(pu.path) > 1 and u not in links \
+                and not re.search(r"login|signin|signup|logout|\.(png|jpg|svg|css|js|pdf|zip)$", u, re.I):
+            links.append(u)
+    out = {"url": r["url"], "links_found": len(links)}
+    if len(page_text(r["text"])) < 400 and not links:
+        return out | {"note": "the page renders client-side; the script could not read its article list"}
+    # Prefer links below the help page itself (its own articles) over the site's general navigation.
+    own = [u for u in links if u.startswith(here + "/")]
+    picked = (own or links)[:sample]
+    out["article_links_under_this_page"] = len(own)
+    dead = []
+    for u in picked:
+        time.sleep(DELAY)
+        s = fetch(u, 20_000)
+        if s["status"] in (403, 429):
+            out["note"] = "the site refused further automated requests; the sample is incomplete"
+            break
+        if s["status"] in (0, 404, 410) or s["status"] >= 500:
+            dead.append({"url": u, "status": s["status"]})
+    return out | {"checked": len(picked), "dead": dead}
+
+
 def onsite(out: dict, home_text: str, root: str, today: dt.date) -> None:
     """Follow-ups that cost the vendor's site at most four more requests."""
     out["homepage_claims"] = claims(home_text)
@@ -200,6 +243,11 @@ def onsite(out: dict, home_text: str, root: str, today: dt.date) -> None:
             index = min(pages[kind], key=len)  # the shortest URL is most likely the index, not one article
             acts.append({"kind": kind} | activity(index, today))
     out["publishing_activity"] = acts
+    helpful = [min(pages[k], key=len) for k in ("help", "docs") if pages.get(k)][:2]
+    out["help_and_docs"] = []
+    for u in dict.fromkeys(helpful):
+        time.sleep(DELAY)
+        out["help_and_docs"].append(help_centre(u))
     legal = next((u for u in pages.get("legal", []) if re.search(r"imprint|impressum|legal-notice|legal$", u, re.I)),
                  (pages.get("legal") or [None])[0])
     if legal:
@@ -281,6 +329,13 @@ def flags(out: dict, today: dt.date) -> None:
         solid.append(f"VAT ID {vat['vat_id']} is valid in the EU register")
     if out.get("legal_entity", {}).get("note"):
         f.append("the legal page names no register number, VAT ID or legal form")
+    for h in out.get("help_and_docs", []):
+        if h.get("checked") and len(h.get("dead", [])) >= 2:
+            f.append(f"{len(h['dead'])} of {h['checked']} sampled links on the help or docs page {h['url']} are dead: "
+                     + ", ".join(d["url"] for d in h["dead"][:3]))
+        elif h.get("checked") and h.get("article_links_under_this_page", 0) >= 20 and not h.get("dead"):
+            solid.append(f"the help or docs page {h['url']} links to {h['article_links_under_this_page']} pages of its own "
+                         f"and all {h['checked']} sampled ones load")
     if out.get("hollow_social_links"):
         f.append("social icons link to the platform's front page, not to a profile: " + ", ".join(out["hollow_social_links"][:4]))
     dead = out.get("link_check", {})

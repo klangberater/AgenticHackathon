@@ -92,8 +92,9 @@ class Handler(BaseHTTPRequestHandler):
             work.mkdir(parents=True, exist_ok=True)
             (work / "verdicts.json").write_text(json.dumps([json.loads(src.read_text())]))
             sig = OUT / f"{name}.signals.json"
-            if sig.is_file():
-                (work / sig.name).write_bytes(sig.read_bytes())
+            for extra_file in (sig, OUT / f"{name}.png"):
+                if extra_file.is_file():
+                    (work / extra_file.name).write_bytes(extra_file.read_bytes())
             made = report.build(work)
             if made.suffix != ".pdf":
                 return self.send(200, made.read_bytes(), "text/html; charset=utf-8")

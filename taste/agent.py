@@ -47,11 +47,21 @@ SCHEMA = {
         "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
         "summary": {"type": "string", "description": "Three to five sentences for the buyer: the call, what decided it, "
                                                      "and what to ask the vendor or check before committing."},
+        "design_read": {
+            "type": "object",
+            "description": "What the page looks like, from the screenshots.",
+            "properties": {
+                "era": {"type": "string", "description": "When a site that looks like this would have been built, e.g. 'around 2010' or 'current, template-built'."},
+                "observations": {"type": "array", "items": {"type": "string"},
+                                 "description": "Three to six concrete things visible in the screenshots."},
+                "bearing": {"type": "string", "description": "One or two sentences: what the looks do and do not tell a buyer here."},
+            },
+            "required": ["era", "observations", "bearing"], "additionalProperties": False},
         "reasons": {"type": "array", "items": REASON},
         "could_not_check": {"type": "array", "items": {"type": "string"}},
     },
     "required": ["product_name", "product_category", "former_names", "vendor_name", "lifecycle", "verdict", "product_real_and_alive",
-                 "company_trustworthy", "confidence", "summary", "reasons", "could_not_check"],
+                 "company_trustworthy", "confidence", "summary", "design_read", "reasons", "could_not_check"],
     "additionalProperties": False,
 }
 
@@ -112,10 +122,14 @@ How to investigate:
 - Start by pinning down identity: the product's current name and former names, the legal entity, the parent or \
 owner and how ownership changed over time, and whether this URL is really the product's home. Search under \
 former names and the parent as well; the history usually sits there.
-- Look at the screenshot for what text does not show: the era of the design, images that look AI-generated or \
-stock, ownership or partner status that appears only inside a logo image, navigation built from images, \
-counters and claims set in graphics, a layout that is broken. Say what you see. To cite it, use the page's URL \
-and quote nearby text from that page.
+- Look at the screenshots for what text does not show. The first is the top of the page at reading size, the \
+second the whole page from further away. Note the era of the design, the typography and layout, images that \
+look AI-generated or stock, whether product screenshots show what looks like a real, used interface or a \
+mock-up, ownership or partner status that appears only inside a logo image, navigation built from images, \
+counters and claims set in graphics, and anything broken. Record this in design_read: say what you see, \
+concretely enough that someone looking at the page would agree, and what it does and does not tell a buyer. \
+Where something you see matters for the verdict, also make it a flag; to cite it, use the page's URL and quote \
+nearby text from that page.
 - Read the vendor's own site critically: the footer, the legal and privacy pages (do they exist, are they real \
 documents, do they name an entity and an address), the trust centre (certificates that name an auditor, dates \
 that agree with each other), where the social links actually lead, and whether the product can be reached \
@@ -192,18 +206,19 @@ if os.environ.get("TASTE_VERDICT_FILE"):
     SCHEMA["required"].append("identity")
 
 
-def judge(url: str, signals: dict, screenshot: Path | None = None, model: str = MODEL, effort: str = EFFORT) -> dict:
+def judge(url: str, signals: dict, screenshots: list[Path] = (), model: str = MODEL, effort: str = EFFORT) -> dict:
     """Run one investigation. Returns the structured verdict plus `_meta`."""
     text = (f"Assess this software product: {url}\n\n"
-            + ("The image is a screenshot of that page as a visitor sees it.\n\n" if screenshot else
-               "No screenshot could be taken, so judge the looks from the page itself.\n\n")
+            + ("The images are screenshots of that page as a visitor sees it: first the top of the page, then "
+               "the whole page.\n\n" if screenshots else
+               "No screenshot could be taken, so base design_read on the page's markup and say so there.\n\n")
             + "Signals a script already collected (each comes with a URL you can cite after opening it; "
               "where the script was blocked or found nothing, check yourself):\n"
             f"<signals>\n{json.dumps(signals, indent=1, ensure_ascii=False)}\n</signals>")
     content: list[dict] = []
-    if screenshot:
+    for shot in screenshots:
         content.append({"type": "image", "source": {"type": "base64", "media_type": "image/png",
-                                                    "data": base64.b64encode(screenshot.read_bytes()).decode()}})
+                                                    "data": base64.b64encode(shot.read_bytes()).decode()}})
     content.append({"type": "text", "text": text})
     return _run(["--system-prompt", SYSTEM], content, model, effort)
 

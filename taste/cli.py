@@ -41,10 +41,13 @@ def judge_one(url: str, out: Path, args) -> dict:
         log(url, "collecting signals")
         signals = collect(url)
         (out / f"{slug(url)}.signals.json").write_text(json.dumps(signals, indent=2, ensure_ascii=False))
-        shot = out / f"{slug(url)}.png"
-        has_shot = browser.screenshot(normalize(url), shot)
+        shot, full = out / f"{slug(url)}.png", out / f"{slug(url)}.full.png"
+        has_shot = browser.screenshot(normalize(url), shot, height=1500)        # the top, at reading size
+        shots = [shot] if has_shot else []
+        if has_shot and browser.screenshot(normalize(url), full, height=5200):  # the whole page, from further away
+            shots.append(full)
         log(url, "investigating" + ("" if has_shot else " (no screenshot)"))
-        v = agent.judge(url, signals, shot if has_shot else None, args.model, args.effort)
+        v = agent.judge(url, signals, shots, args.model, args.effort)
         verify.check_all(v["reasons"])
         bad = verify.failed(v["reasons"])
         if bad and not args.no_repair:
