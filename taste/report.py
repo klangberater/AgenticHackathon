@@ -351,7 +351,7 @@ def build(out: Path) -> Path:
         f = out / f"{cli.slug(v['url'])}.signals.json"
         sigs[v["url"]] = json.loads(f.read_text()) if f.is_file() else {}
     rows = "".join(
-        f'<tr><td>{i}</td><td><b>{e(v.get("product_name", v["url"]))}</b><br><span class="small">{_link(v["url"], short=True)}</span></td>'
+        f'<tr><td>{e(str(v.get("_input", {}).get("id") or i))}</td><td><b>{e(v.get("product_name", v["url"]))}</b><br><span class="small">{_link(v["url"], short=True)}</span></td>'
         f'<td>{"<span class=\'chip " + v["verdict"] + "\'>" + LABEL[v["verdict"]] + "</span>" if "verdict" in v else "failed"}</td>'
         f'<td class="decided">{e(v.get("deciding_ground") or _gist(v))}</td>'
         f'<td class="small nowrap">{len(cli.flags(v, "red"))} red<br>{len(cli.flags(v, "yellow"))} yellow<br>{len(cli.flags(v, "green"))} green</td></tr>'

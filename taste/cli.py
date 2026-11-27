@@ -167,21 +167,33 @@ def write_csv(verdicts: list[dict], path: Path) -> None:
         w = csv.writer(f)
         w.writerow(["id", "url", "product", "vendor", "overall", "green_flags", "yellow_flags", "red_flags", "reasoning"])
         for i, v in enumerate(verdicts, 1):
+            row = v.get("_input", {})  # the organiser's own id, product and vendor, when the run came from their CSV
+            ident = [row.get("id") or i, row.get("url") or v["url"]]
             if "error" in v:
-                w.writerow([i, v["url"], "", "", "", "", "", "", f"Run failed: {v['error']}"])
-            else:
-                w.writerow([i, v["url"], f"{v['product_name']} ({v['product_category']})", v["vendor_name"],
-                            v["verdict"].capitalize(),
-                            cell(v, "green"), cell(v, "yellow"), cell(v, "red"), v["summary"]])
+                w.writerow(ident + [row.get("product", ""), row.get("vendor", ""), "", "", "", "", f"Run failed: {v['error']}"])
+                continue
+            reasoning = v["summary"]
+            if v.get("deciding_ground"):
+                reasoning = f"What decided it: {v['deciding_ground']}\n\n{reasoning}"
+            if v.get("would_change_call"):
+                reasoning += f"\n\nWhat would change the call: {v['would_change_call']}"
+            w.writerow(ident + [row.get("product") or f"{v['product_name']} ({v['product_category']})",
+                                row.get("vendor") or v["vendor_name"], v["verdict"].capitalize(),
+                                cell(v, "green"), cell(v, "yellow"), cell(v, "red"), reasoning])
+
+
+def read_rows(path: str) -> list[dict]:
+    """The input as rows with at least a url; a CSV keeps its other columns (id, product, vendor)."""
+    raw = Path(path).read_text(encoding="utf-8-sig")
+    if path.endswith(".json"):
+        return [{"url": c["url"]} for c in json.loads(raw)]
+    if path.endswith(".csv"):
+        return [{k.strip().lower(): (val or "").strip() for k, val in r.items() if k} for r in csv.DictReader(io.StringIO(raw))]
+    return [{"url": l.strip()} for l in raw.splitlines() if l.strip() and not l.startswith("#")]
 
 
 def read_urls(path: str) -> list[str]:
-    raw = Path(path).read_text(encoding="utf-8-sig")
-    if path.endswith(".json"):
-        return [c["url"] for c in json.loads(raw)]
-    if path.endswith(".csv"):
-        return [r["url"] for r in csv.DictReader(io.StringIO(raw))]
-    return [l.strip() for l in raw.splitlines() if l.strip() and not l.startswith("#")]
+    return [r["url"] for r in read_rows(path)]
 
 
 def cmd_run(args) -> None:
@@ -194,6 +206,19 @@ def cmd_run(args) -> None:
     out.mkdir(parents=True, exist_ok=True)
     with ThreadPoolExecutor(args.parallel) as ex:
         verdicts = list(ex.map(lambda u: judge_one(u, out, args), urls))
+    if args.file:
+        # Write every row of the file, not only the ones run now: a product left out by --only keeps its saved
+        # result, so re-running a failed product does not drop the others from the submission.
+        done = dict(zip(urls, verdicts))
+        verdicts = []
+        for row in read_rows(args.file):
+            saved = out / f"{slug(row['url'])}.json"
+            v = done.get(row["url"]) or (json.loads(saved.read_text()) if saved.is_file() else
+                                         {"url": row["url"], "error": "not run yet"})
+            verdicts.append(v | {"_input": row})
+        for u, v in done.items():  # URLs given on the command line as well as the file
+            if not any(u == r["url"] for r in read_rows(args.file)):
+                verdicts.append(v)
     (out / "verdicts.json").write_text(json.dumps(verdicts, indent=2, ensure_ascii=False))
     (out / "verdicts.md").write_text(markdown(verdicts))
     write_csv(verdicts, out / "verdicts.csv")
