@@ -1,5 +1,9 @@
 # Agents with Taste: a vendor check agent
 
+**The verdicts on the ten live products: read [`stackgini-verdicts.pdf`](stackgini-verdicts.pdf) first.**
+[`stackgini-verdicts.csv`](stackgini-verdicts.csv) holds the same verdicts in the labelled set's columns.
+Green: shortlist it. Yellow: shortlist only after resolving the yellow flags. Red: do not shortlist.
+
 Give it the website of a software product; it returns Green, Yellow or Red for one question: would an
 enterprise procurement team shortlist this product as it stands? Every reason comes with a source link and a
 verbatim quote from that source, and code re-opens every source before a reason reaches the report.
