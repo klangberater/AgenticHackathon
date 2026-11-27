@@ -1,0 +1,43 @@
+name: Deploy to getfletcher.ai
+
+# Runs on the self-hosted runner that lives on the server itself (set up with deploy/runner-setup.sh).
+# Only pushes to main and manual runs deploy. Never add a pull_request trigger here: on a self-hosted
+# runner that would let a pull request run code on the server.
+on:
+  push:
+    branches: [main]
+    paths: ["taste/**", "web/**", ".github/workflows/deploy.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-getfletcher
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy vendor check
+    if: github.repository == 'klangberater/AgenticHackathon'
+    runs-on: [self-hosted, Linux, taste-deploy]
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Check the code imports
+        run: python3 -c "import taste.cli, taste.server, taste.export"
+
+      - name: Copy the app and restart the service
+        # The runner user may run exactly this one root command (see /etc/sudoers.d/taste-deploy).
+        # It copies taste/ and web/ only; the app itself runs as the sandboxed `taste` user.
+        run: sudo /usr/local/sbin/taste-deploy "$GITHUB_WORKSPACE"
+
+      - name: Verify the service answers
+        run: |
+          sleep 2
+          systemctl is-active taste
+          echo "Deployed ${GITHUB_SHA::7}"
