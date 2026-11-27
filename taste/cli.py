@@ -11,6 +11,7 @@ import json
 import re
 import sys
 import time
+import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -69,6 +70,21 @@ def judge_one(url: str, out: Path, args) -> dict:
     return v
 
 
+def evidence_link(r: dict) -> str:
+    """The source URL with a text fragment, so the browser jumps to the quoted passage and highlights it.
+
+    Uses the quote's first and last few words (browsers match the span between them), which survives
+    line breaks and markup inside the passage. Pages that do not support it simply open as usual.
+    """
+    url, words = r["source_url"], r.get("quote", "").split()
+    if "#" in url or len(words) < 4 or r.get("check", {}).get("status") != "ok":
+        return url
+    enc = lambda ws: urllib.parse.quote(" ".join(ws), safe="").replace("-", "%2D")
+    if len(words) <= 8:
+        return f"{url}#:~:text={enc(words)}"
+    return f"{url}#:~:text={enc(words[:4])},{enc(words[-4:])}"
+
+
 def flags(v: dict, colour: str) -> list[dict]:
     return [r for r in v.get("reasons", []) if r["flag"] == colour]
 
@@ -90,7 +106,7 @@ def markdown(verdicts: list[dict]) -> str:
                 lines += [f"**{colour.capitalize()} flags**", ""]
             for r in flags(v, colour):
                 note = "" if r["check"]["status"] == "ok" else f" _(source check: {r['check']['status']})_"
-                lines += [f"- {r['claim']}  ", f"  [{r['source_url']}]({r['source_url']}): \"{r['quote']}\"{note}"]
+                lines += [f"- {r['claim']}  ", f"  [{r['source_url']}]({evidence_link(r)}): \"{r['quote']}\"{note}"]
             if flags(v, colour):
                 lines.append("")
         if v["could_not_check"]:
@@ -99,9 +115,10 @@ def markdown(verdicts: list[dict]) -> str:
 
 
 def write_csv(verdicts: list[dict], path: Path) -> None:
-    """Same columns as the labelled examples, with the source behind each flag in brackets."""
+    """Same columns as the labelled examples. Each flag carries its quote and a link that opens at the quote."""
     def cell(v, colour):
-        return " ".join(f"{r['claim']} [{r['source_url']}]" for r in flags(v, colour)) or "None identified."
+        return "\n".join(f"- {r['claim']} Source says: \"{r['quote']}\" {evidence_link(r)}"
+                         for r in flags(v, colour)) or "None identified."
     with path.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["id", "url", "product", "vendor", "overall", "green_flags", "yellow_flags", "red_flags", "reasoning"])

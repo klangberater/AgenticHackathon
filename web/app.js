@@ -25,11 +25,19 @@ function tag(text, tone) {
   return t;
 }
 
-function link(url) {
+function link(url, quote) {
   if (!/^https?:\/\//i.test(url)) return el("span", null, url);
   const a = el("a", null, url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""));
-  a.href = url; a.target = "_blank"; a.rel = "noreferrer noopener";
+  a.href = url + fragment(url, quote); a.target = "_blank"; a.rel = "noreferrer noopener";
   return a;
+}
+
+// A text fragment makes the browser jump to the quoted passage and highlight it.
+function fragment(url, quote) {
+  const words = (quote || "").split(/\s+/).filter(Boolean);
+  if (url.includes("#") || words.length < 4) return "";
+  const enc = (ws) => encodeURIComponent(ws.join(" ")).replace(/-/g, "%2D");
+  return "#:~:text=" + (words.length <= 8 ? enc(words) : `${enc(words.slice(0, 4))},${enc(words.slice(-4))}`);
 }
 
 function setUrlState(params) {
@@ -82,7 +90,7 @@ function render(v) {
       const li = el("li");
       li.append(el("p", "claim", r.claim), el("blockquote", "quote", r.quote));
       const src = el("p", "source");
-      src.append(link(r.source_url), tag(r.category));
+      src.append(link(r.source_url, r.check && r.check.status === "ok" ? r.quote : ""), tag(r.category));
       if (r.independent) src.append(tag("Independent source"));
       const status = r.check ? r.check.status : "";
       if (status) src.append(tag(CHECK_LABEL[status] || status, status));
