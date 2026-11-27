@@ -55,8 +55,28 @@ def judge_one(url: str, out: Path, args) -> dict:
                 v = v2
             except Exception as e:  # keep the first answer rather than lose the product
                 log(url, f"repair failed ({e}); keeping first pass")
-        # A reason whose source is dead or does not contain the quote must not reach the judges.
-        dropped = [r for r in v["reasons"] if r["check"]["status"] in ("dead", "missing")]
+        if not args.no_support_check:
+            log(url, "checking that each source says what is claimed")
+            try:
+                unsupported = verify.check_support(v["reasons"], lambda items: agent.support_judge(items, args.model))
+                order = {c: i for i, c in enumerate(COLOURS)}
+                worst = max((order[r["flag"]] for r in v["reasons"] if r not in unsupported), default=0)
+                if unsupported and order[v["verdict"]] > worst and not args.no_repair:
+                    # The flag that carried the verdict fell away: let the agent re-source it or revise the call.
+                    log(url, "the deciding flag was not supported by its source, revising")
+                    v2 = agent.repair(v["_meta"]["session_id"], [
+                        {"claim": r["claim"], "source_url": r["source_url"], "quote": r["quote"],
+                         "problem": f"the source does not say this: {r['check']['detail']}"} for r in unsupported],
+                        args.model, args.effort)
+                    v2["_meta"]["seconds"] += v["_meta"]["seconds"]
+                    verify.check_all(v2["reasons"])
+                    v = v2
+            except Exception as e:  # the quote check already passed; do not lose the product over this
+                log(url, f"support check failed ({e}); keeping quote-checked reasons")
+        for r in v["reasons"]:
+            r["check"].pop("context", None)
+        # A reason whose source is dead, lacks the quote or does not carry the claim must not reach the judges.
+        dropped = [r for r in v["reasons"] if r["check"]["status"] in ("dead", "missing", "unsupported")]
         v["reasons"] = [r for r in v["reasons"] if r not in dropped]
         v["dropped_reasons"] = dropped
         v["url"] = normalize(url)
@@ -190,6 +210,7 @@ def main() -> None:
     r.add_argument("--model", default=agent.MODEL)
     r.add_argument("--effort", default=agent.EFFORT)
     r.add_argument("--no-repair", action="store_true")
+    r.add_argument("--no-support-check", action="store_true")
     r.set_defaults(fn=cmd_run)
     e = sub.add_parser("eval")
     e.add_argument("labels")

@@ -121,7 +121,7 @@ function slugOf(url) {
 
 function stageOf(steps) {
   const last = steps.length ? steps[steps.length - 1].text : "";
-  if (/repairing|sources did not/.test(last)) return "verify";
+  if (/repairing|sources did not|each source says|revising/.test(last)) return "verify";
   if (/investigating/.test(last)) return "investigate";
   return "collect";
 }

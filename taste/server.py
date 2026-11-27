@@ -28,7 +28,7 @@ WEB = Path(__file__).resolve().parent.parent / "web"
 OUT = Path("out/web")
 TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8"}
 JOBS: dict[str, dict] = {}
-ARGS = SimpleNamespace(model=agent.MODEL, effort=agent.EFFORT, no_repair=False)
+ARGS = SimpleNamespace(model=agent.MODEL, effort=agent.EFFORT, no_repair=False, no_support_check=False)
 MAX_RUNNING = int(os.environ.get("TASTE_MAX_RUNNING", "4"))
 TOKEN = os.environ.get("TASTE_TOKEN", "")
 DRAINING = threading.Event()  # set on SIGTERM: finish running checks, accept no new ones, then exit
